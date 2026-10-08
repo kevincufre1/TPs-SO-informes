@@ -1,0 +1,102 @@
+\relax 
+\providecommand \babel@aux [2]{\global \let \babel@toc \@gobbletwo }
+\@nameuse{bbl@beforestart}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\babel@aux{spanish}{}
+\@writefile{toc}{\contentsline {section}{\numberline {0}Introduccion y Contexto de la Misión}{1}{section.0}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1}Etapa 01 — Infraestructura del Sector}{1}{section.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Parámetros y especificaciones técnicas de los nodos del sector NEXUS-9.}}{1}{table.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:infraestructura}{{1}{1}{Parámetros y especificaciones técnicas de los nodos del sector NEXUS-9}{table.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Etapa 02 — Comunicación entre las Máquinas}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Resolución Estática de Nombres mediante \texttt  {/etc/hosts}}{1}{subsection.2.1}\protected@file@percent }
+\newlabel{fig:hosts_rocky}{{1a}{2}{Archivo \texttt {/etc/hosts} en Rocky Linux (\texttt {field-terminal}): entradas para \texttt {sector-core} y \texttt {field-terminal} en la red \texttt {192.168.56.0/24}}{figure.caption.3}{}}
+\newlabel{sub@fig:hosts_rocky}{{a}{2}{Archivo \texttt {/etc/hosts} en Rocky Linux (\texttt {field-terminal}): entradas para \texttt {sector-core} y \texttt {field-terminal} en la red \texttt {192.168.56.0/24}}{figure.caption.3}{}}
+\newlabel{fig:hosts_ubuntu}{{1b}{2}{Archivo \texttt {/etc/hosts} en Ubuntu Server (\texttt {sector-core}): mismas entradas simétricas configuradas}{figure.caption.3}{}}
+\newlabel{sub@fig:hosts_ubuntu}{{b}{2}{Archivo \texttt {/etc/hosts} en Ubuntu Server (\texttt {sector-core}): mismas entradas simétricas configuradas}{figure.caption.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Resolución estática de nombres configurada en ambas VMs mediante \texttt  {/etc/hosts}.}}{2}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:etapa02_hosts}{{1}{2}{Resolución estática de nombres configurada en ambas VMs mediante \texttt {/etc/hosts}}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Verificación Experimental de Conectividad (ICMP Ping)}{2}{subsection.2.2}\protected@file@percent }
+\newlabel{fig:ping_rocky}{{2a}{2}{\texttt {ping -c 3 sector-core} desde Rocky Linux: 0\% packet loss, RTT avg 0.768 ms}{figure.caption.4}{}}
+\newlabel{sub@fig:ping_rocky}{{a}{2}{\texttt {ping -c 3 sector-core} desde Rocky Linux: 0\% packet loss, RTT avg 0.768 ms}{figure.caption.4}{}}
+\newlabel{fig:ping_ubuntu}{{2b}{2}{\texttt {ping -c 3 field-terminal} desde Ubuntu: 0\% packet loss, RTT avg 0.572 ms}{figure.caption.4}{}}
+\newlabel{sub@fig:ping_ubuntu}{{b}{2}{\texttt {ping -c 3 field-terminal} desde Ubuntu: 0\% packet loss, RTT avg 0.572 ms}{figure.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Verificación de conectividad bidireccional en Capa 3 entre \texttt  {field-terminal} y \texttt  {sector-core}.}}{2}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:etapa02_conectividad}{{2}{2}{Verificación de conectividad bidireccional en Capa 3 entre \texttt {field-terminal} y \texttt {sector-core}}{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Etapa 03 — Usuarios, Grupos y Privilegios}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Fundamentación Teórica}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Configuración Aplicada}{3}{subsection.3.2}\protected@file@percent }
+\newlabel{fig:sudo_rocky}{{3a}{3}{Verificación en Rocky Linux (\texttt {field-terminal}): \texttt {kevin} en el grupo \texttt {wheel} y regla \texttt {\%wheel ALL=(ALL) ALL} en \texttt {sudoers}}{figure.caption.5}{}}
+\newlabel{sub@fig:sudo_rocky}{{a}{3}{Verificación en Rocky Linux (\texttt {field-terminal}): \texttt {kevin} en el grupo \texttt {wheel} y regla \texttt {\%wheel ALL=(ALL) ALL} en \texttt {sudoers}}{figure.caption.5}{}}
+\newlabel{fig:sudo_ubuntu}{{3b}{3}{Verificación en Ubuntu Server (\texttt {sector-core}): \texttt {kevin} en el grupo \texttt {sudo} y regla \texttt {\%sudo ALL=(ALL:ALL) ALL} en \texttt {sudoers}}{figure.caption.5}{}}
+\newlabel{sub@fig:sudo_ubuntu}{{b}{3}{Verificación en Ubuntu Server (\texttt {sector-core}): \texttt {kevin} en el grupo \texttt {sudo} y regla \texttt {\%sudo ALL=(ALL:ALL) ALL} en \texttt {sudoers}}{figure.caption.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Documentación de los usuarios con privilegios administrativos delegados en ambas distribuciones.}}{3}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:etapa03_sudo}{{3}{3}{Documentación de los usuarios con privilegios administrativos delegados en ambas distribuciones}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Etapa 04 — Acceso Remoto Seguro mediante SSH}{3}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Investigación Previa}{4}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Generación y Distribución de Claves (Ed25519)}{4}{subsection.4.2}\protected@file@percent }
+\newlabel{fig:ssh_keygen}{{4a}{4}{Generación del par de claves Ed25519 desde Rocky Linux (\texttt {field-terminal})}{figure.caption.6}{}}
+\newlabel{sub@fig:ssh_keygen}{{a}{4}{Generación del par de claves Ed25519 desde Rocky Linux (\texttt {field-terminal})}{figure.caption.6}{}}
+\newlabel{fig:ssh_copy_id}{{4b}{4}{Distribución de la clave pública a Ubuntu (\texttt {192.168.56.10}) con \texttt {ssh-copy-id}}{figure.caption.6}{}}
+\newlabel{sub@fig:ssh_copy_id}{{b}{4}{Distribución de la clave pública a Ubuntu (\texttt {192.168.56.10}) con \texttt {ssh-copy-id}}{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Generación en Rocky y despliegue de la clave pública hacia Ubuntu a traves de la red interna de las VMs.}}{4}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:etapa04_ssh_setup}{{4}{4}{Generación en Rocky y despliegue de la clave pública hacia Ubuntu a traves de la red interna de las VMs}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Verificación de la Conexión VM a VM mediante SSH}{4}{subsection.4.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Conexión SSH exitosa desde Rocky Linux (\texttt  {field-terminal}) hacia Ubuntu Server (\texttt  {sector-core}, \texttt  {192.168.56.10}) por la red interna de las VMs.}}{5}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:etapa04_ssh_verificacion}{{5}{5}{Conexión SSH exitosa desde Rocky Linux (\texttt {field-terminal}) hacia Ubuntu Server (\texttt {sector-core}, \texttt {192.168.56.10}) por la red interna de las VMs}{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Hardening: Deshabilitación del Login Remoto de Root}{5}{subsection.4.4}\protected@file@percent }
+\newlabel{fig:root_rocky}{{6a}{5}{\texttt {sshd\_config} en Rocky Linux (puerto 2223)}{figure.caption.8}{}}
+\newlabel{sub@fig:root_rocky}{{a}{5}{\texttt {sshd\_config} en Rocky Linux (puerto 2223)}{figure.caption.8}{}}
+\newlabel{fig:root_ubuntu}{{6b}{5}{\texttt {sshd\_config} en Ubuntu Server (puerto 2222)}{figure.caption.8}{}}
+\newlabel{sub@fig:root_ubuntu}{{b}{5}{\texttt {sshd\_config} en Ubuntu Server (puerto 2222)}{figure.caption.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Deshabilitación de acceso remoto para \texttt  {root} en ambas distribuciones.}}{5}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:etapa04_root_disable}{{6}{5}{Deshabilitación de acceso remoto para \texttt {root} en ambas distribuciones}{figure.caption.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Etapa 05 — Inventario Automatizado del Sistema}{5}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Diseño del Script y Política de Manejo de Errores}{5}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.1}Agnosticismo de Distribución e Introspección Segura}{6}{subsubsection.5.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.2}Política de Supervivencia y Manejo de Errores (\texttt  {set -euo pipefail})}{6}{subsubsection.5.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.3}Semántica de Códigos de Salida}{6}{subsubsection.5.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Análisis Funcional de las Secciones del Inventario}{7}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Código Fuente Completo de \texttt  {system-inventory.sh}}{7}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Ejecución Experimental en Ambos Nodos (Ubuntu Server y Rocky Linux)}{9}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.4.1}Validación en \texttt  {sector-core} (Ubuntu Server)}{9}{subsubsection.5.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Ejecución de \texttt  {system-inventory.sh} en \texttt  {sector-core} (Ubuntu Server 26.04.1 LTS): recolección completa de inventario bajo control de errores estricto.}}{9}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:sys_inv_ubuntu}{{7}{9}{Ejecución de \texttt {system-inventory.sh} en \texttt {sector-core} (Ubuntu Server 26.04.1 LTS): recolección completa de inventario bajo control de errores estricto}{figure.caption.9}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.4.2}Validación en \texttt  {field-terminal} (Rocky Linux)}{10}{subsubsection.5.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Ejecución de \texttt  {system-inventory.sh} en \texttt  {field-terminal} (Rocky Linux 10.2 Red Quartz): introspección exitosa y agnóstica de hardware y servicios.}}{10}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:sys_inv_rocky}{{8}{10}{Ejecución de \texttt {system-inventory.sh} en \texttt {field-terminal} (Rocky Linux 10.2 Red Quartz): introspección exitosa y agnóstica de hardware y servicios}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Etapa 06 — Networking 101}{11}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Parte A — Identidad en la Red Local (Capa 2 vs. Capa 3)}{11}{subsection.6.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Tabla comparativa rigurosa entre Dirección IP y Dirección MAC.}}{11}{table.caption.11}\protected@file@percent }
+\newlabel{tab:ip_vs_mac}{{2}{11}{Tabla comparativa rigurosa entre Dirección IP y Dirección MAC}{table.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Parte B — Tabla de Vecinos}{11}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.2.1}Inspección e Identificación de Entradas de Vecinos}{11}{subsubsection.6.2.1}\protected@file@percent }
+\newlabel{fig:neigh_rocky}{{9a}{11}{Tabla de vecinos en Rocky Linux (\texttt {field-terminal})}{figure.caption.12}{}}
+\newlabel{sub@fig:neigh_rocky}{{a}{11}{Tabla de vecinos en Rocky Linux (\texttt {field-terminal})}{figure.caption.12}{}}
+\newlabel{fig:neigh_ubuntu}{{9b}{11}{Tabla de vecinos en Ubuntu Server (\texttt {sector-core})}{figure.caption.12}{}}
+\newlabel{sub@fig:neigh_ubuntu}{{b}{11}{Tabla de vecinos en Ubuntu Server (\texttt {sector-core})}{figure.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Visualización de tablas de vecinos mediante \texttt  {ip neigh} en ambos nodos.}}{11}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:neigh_ambos}{{9}{11}{Visualización de tablas de vecinos mediante \texttt {ip neigh} en ambos nodos}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.2.2}Significado de los Estados del Kernel en la Tabla de Vecinos}{12}{subsubsection.6.2.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Estados del autómata de vecinos en el subsistema de red de Linux (RFC 4861).}}{12}{table.caption.13}\protected@file@percent }
+\newlabel{tab:estados_arp}{{3}{12}{Estados del autómata de vecinos en el subsistema de red de Linux (RFC 4861)}{table.caption.13}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.2.3}Dinámica ARP: Eliminación de Entrada y Regeneración de Tráfico}{12}{subsubsection.6.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Fase 1: Vaciado y Reconstrucción Dinámica de la Tabla ARP.}{12}{paragraph*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Fase 2: Inyección de Entrada Corrupta (Conflicto de MAC).}{12}{paragraph*.15}\protected@file@percent }
+\newlabel{fig:p9_secuencia}{{10a}{13}{Secuencia completa de purga, tráfico y reconstrucción}{figure.caption.16}{}}
+\newlabel{sub@fig:p9_secuencia}{{a}{13}{Secuencia completa de purga, tráfico y reconstrucción}{figure.caption.16}{}}
+\newlabel{fig:p9_conflicto}{{10b}{13}{Inyección de MAC falsa y fallo de comunicación (100\% loss)}{figure.caption.16}{}}
+\newlabel{sub@fig:p9_conflicto}{{b}{13}{Inyección de MAC falsa y fallo de comunicación (100\% loss)}{figure.caption.16}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Validación experimental del ciclo de vida y dinámica ARP en el sector NEXUS-9.}}{13}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:etapa06_arp_experimentos}{{10}{13}{Validación experimental del ciclo de vida y dinámica ARP en el sector NEXUS-9}{figure.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Parte C — Dos Máquinas y un Switch (Sin Router)}{13}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Comparativa de Administración entre Distribuciones}{14}{subsection.6.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Divergencias operativas prácticas entre Ubuntu Server y Rocky Linux.}}{14}{table.caption.17}\protected@file@percent }
+\newlabel{tab:comparativa_distros}{{4}{14}{Divergencias operativas prácticas entre Ubuntu Server y Rocky Linux}{table.caption.17}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusiones Técnicas}{14}{section.7}\protected@file@percent }
+\newlabel{LastPage}{{7}{14}{Conclusiones Técnicas}{page.14}{}}
+\gdef\lastpage@lastpage{14}
+\gdef\lastpage@lastpageHy{14}
+\gdef \@abspage@last{15}
