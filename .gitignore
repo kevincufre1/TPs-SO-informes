@@ -1,5 +1,15 @@
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# PDF (regenerable from .tex)
+*.pdf
+
+# OS files
 .DS_Store
 Thumbs.db
-*.log
-*.tmp
-__pycache__/
