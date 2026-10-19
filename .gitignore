@@ -6,6 +6,7 @@
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+*.listing
 
 # PDF (regenerable from .tex)
 *.pdf
