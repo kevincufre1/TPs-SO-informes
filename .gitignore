@@ -8,9 +8,6 @@
 *.fdb_latexmk
 *.listing
 
-# PDF (regenerable from .tex)
-*.pdf
-
 # OS files
 .DS_Store
 Thumbs.db
