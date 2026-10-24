@@ -12,6 +12,7 @@
 
 % --- Elementos gráficos y tablas ---
 \usepackage{graphicx}
+\graphicspath{{images/}{./}}
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
@@ -331,6 +332,17 @@ El daemon \texttt{nexusd} fue concebido bajo un paradigma de diseño altamente d
     \end{itemize}
 \end{pregunta}
 
+\subsection{Verificación Experimental de la Arquitectura del Código Fuente}
+
+En la Figura~\ref{fig:etapa01_arbol} se presenta la estructura de directorios y la organización modular del código fuente de \texttt{nexusd}. Se evidencia la segregación estricta entre cabeceras públicas (\texttt{include/}) e implementaciones internas (\texttt{src/}), asegurando que ningún módulo viole los principios de encapsulamiento ni acceda directamente a estructuras privadas de otro componente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth,height=5.8cm,keepaspectratio]{images/etapa01_estructura_modulos.png}
+    \caption{Árbol de directorios y organización de submódulos en el código fuente de \texttt{nexusd}.}
+    \label{fig:etapa01_arbol}
+\end{figure}
+
 % ==============================================================================
 % ETAPA 02 — PERSISTENCIA
 % ==============================================================================
@@ -443,6 +455,17 @@ CREATE TABLE IF NOT EXISTS audit_events (
     \end{enumerate}
 \end{pregunta}
 
+\subsection{Verificación Experimental del Esquema y Persistencia en SQLite}
+
+En la Figura~\ref{fig:etapa02_persistencia} se documenta la inspección directa del archivo de base de datos relacional ubicado en \texttt{/var/lib/nexus/}\allowbreak\texttt{nexus.db} utilizando la interfaz de línea de comandos \texttt{sqlite3}. Se constata la correcta instanciación de las tablas de unidades, operadores, incidentes, evidencias y eventos de auditoría, verificando la presencia de claves primarias autoincrementales, restricciones foráneas y dominios de validación (\texttt{CHECK}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth,height=5.8cm,keepaspectratio]{images/etapa02_persistencia_sqlite.png}
+    \caption{Inspección del esquema relacional y estado de las tablas en SQLite mediante la CLI \texttt{sqlite3}.}
+    \label{fig:etapa02_persistencia}
+\end{figure}
+
 % ==============================================================================
 % ETAPA 03 — LA API DEL SECTOR
 % ==============================================================================
@@ -505,6 +528,61 @@ El daemon \texttt{nexusd} expone una interfaz de programación de aplicaciones (
 \begin{pregunta}{¿Para qué sirve versionar una API bajo /api/v1/?}
     \textbf{Respuesta:} El versionado explícito en la URI garantiza el principio de \textbf{estabilidad de contratos} e interoperabilidad evolutiva en sistemas distribuidos. Permite que el equipo de desarrollo introduzca cambios disruptivos (\textit{breaking changes}) en la estructura de datos, formatos o autenticación creando un nuevo conjunto de rutas bajo \texttt{/api/v2/}, sin romper de manera destructiva los clientes o scripts de campo antiguos que continúen consumiendo la interfaz bajo \texttt{/api/v1/}. Otorga un ciclo de deprecación ordenado y seguro en entornos de producción.
 \end{pregunta}
+
+\subsection{Verificación Experimental y Evidencia de Funcionamiento}
+
+Para constatar el correcto funcionamiento de la interfaz de red y la capa de almacenamiento relacional, se ejecutó un conjunto exhaustivo de pruebas directamente contra la API de \texttt{nexusd} mediante peticiones HTTP (\texttt{curl}), verificando el formato de salida JSON y la consistencia transaccional.
+
+En primer lugar, se validó la capacidad de listar las entidades existentes y consultar el detalle pormenorizado de un incidente específico, así como la transición formal de estados a través de la ruta oficial de actualización mediante el verbo \texttt{PATCH} (Figura~\ref{fig:etapa03_consultas_transicion}).
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_a_listar.jpg}
+        \caption{Prueba A: Listado y consulta en detalle de incidentes registrados vía \texttt{GET /api/v1/incidents}.}
+        \label{fig:etapa03_prueba_a}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_b_cambiar_estado.jpg}
+        \caption{Prueba B: Transición de estado a través de la ruta oficial con \texttt{PATCH /api/v1/incidents/\{id\}/status}.}
+        \label{fig:etapa03_prueba_b}
+    \end{subfigure}
+    \caption{Verificación operativa de la API de \texttt{nexusd}: consultas estructuradas en JSON y transición atómica de estados.}
+    \label{fig:etapa03_consultas_transicion}
+\end{figure}
+
+Posteriormente, se verificó la gestión de evidencias digitales asociadas a incidentes, corroborando que el sistema exige y valida la integridad criptográfica mediante el hash SHA-256 del archivo. Asimismo, se comprobó que cada operación de alta o modificación genera de forma síncrona y transaccional una entrada en la tabla inmutable de auditoría (\texttt{audit\_events}), registrando el actor, la acción, el recurso impactado y la marca temporal (Figura~\ref{fig:etapa03_evidencia_auditoria}).
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_c_evidencia.jpg}
+        \caption{Prueba C: Alta de evidencia digital con verificación estricta de checksum SHA-256 y consulta posterior.}
+        \label{fig:etapa03_prueba_c}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_d_auditoria.jpg}
+        \caption{Prueba D: Registro inmutable de eventos en la tabla de auditoría ante cada acción relevante.}
+        \label{fig:etapa03_prueba_d}
+    \end{subfigure}
+    \caption{Gestión de evidencias digitales y trazabilidad transaccional en la base de datos SQLite.}
+    \label{fig:etapa03_evidencia_auditoria}
+\end{figure}
+
+Por último, se puso a prueba la robustez del servidor ante casos de error límite: envío de un checksum con longitud o caracteres no hexadecimales, consulta de un identificador de incidente inexistente y envío de identificadores con tipos incompatibles. Como se observa en la Figura~\ref{fig:etapa03_errores}, la API rechaza consistentemente las anomalías con códigos semánticos (\texttt{400 Bad Request} y \texttt{404 Not Found}), emitiendo un objeto JSON explicativo y sin degradar la estabilidad del daemon.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth,height=5.8cm,keepaspectratio]{images/etapa03_prueba_e_errores.jpg}
+    \caption{Prueba E: Validación de semántica y códigos de error HTTP ante checksum inválido, incidente inexistente e ID malformado.}
+    \label{fig:etapa03_errores}
+\end{figure}
 
 % ==============================================================================
 % ETAPA 04 — CONFIGURACIÓN EXTERNA
@@ -571,6 +649,29 @@ log_level=info
     \end{itemize}
 \end{pregunta}
 
+\subsection{Verificación Experimental de la Configuración Externa}
+
+Se constató empíricamente que el daemon \texttt{nexusd} respeta estrictamente los principios de desacoplamiento de configuración externa. En la Figura~\ref{fig:etapa04_config} se documenta la inspección y lectura de las directivas operacionales: en la subfigura (a) se visualiza el contenido del archivo estandarizado \texttt{/etc/nexus/nexus.conf}, mientras que en la subfigura (b) se comprueba el arranque de \texttt{nexusd} absorbiendo dinámicamente los parámetros de red (\texttt{127.0.0.1:8080}), las rutas al almacén SQLite (\texttt{/var/lib/nexus/nexus.db}) y el nivel de logging sin requerir recompilación ni valores fijos en el código.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.5cm,keepaspectratio]{images/etapa04_config_nexus.jpg}
+        \caption{Inspección de directivas en \texttt{/etc/nexus/nexus.conf}.}
+        \label{fig:etapa04_conf_file}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.5cm,keepaspectratio]{images/etapa04_configuracion_conf.png}
+        \caption{Arranque del daemon aplicando los parámetros leídos.}
+        \label{fig:etapa04_conf_run}
+    \end{subfigure}
+    \caption{Lectura y aplicación dinámica de configuración externa desde \texttt{/etc/nexus/nexus.conf}.}
+    \label{fig:etapa04_config}
+\end{figure}
+
 % ==============================================================================
 % ETAPA 05 — SEÑALES Y CICLO DE VIDA
 % ==============================================================================
@@ -630,6 +731,40 @@ Un proceso de sistema no decide cuándo finaliza ni cuándo su entorno cambia: e
     
     Dado que un daemon de sistema se desasocia completamente de su terminal controladora al nacer, la señal \texttt{SIGHUP} pierde su propósito original de desconexión. Por esta razón, la comunidad UNIX adoptó por convención universal reutilizar \texttt{SIGHUP} como una señal de notificación de propósito general: al recibirla, el daemon interpreta que debe releer sus archivos de configuración en \texttt{/etc} y actualizar su estado interno sin interrumpir sus servicios ni dar de baja a sus conexiones activas.
 \end{pregunta}
+
+\subsection{Verificación Experimental del Manejo de Señales POSIX}
+
+Para certificar que el ciclo de vida del proceso se gestiona de forma determinista y conforme al estándar POSIX, se sometió a \texttt{nexusd} a pruebas de terminación y recarga en caliente mediante la emisión controlada de señales.
+
+En la Figura~\ref{fig:etapa05_apagado} se aprecian las pruebas de apagado ordenado (\textit{graceful shutdown}) ante señales de terminación: tanto al recibir \texttt{SIGTERM} (enviada automáticamente por systemd durante el apagado del servicio) como \texttt{SIGINT} (interrupción interactiva por teclado), el manejador de señales asíncrono activa la bandera atómica, y el bucle principal procede a drenar conexiones, cerrar la base de datos con \texttt{sqlite3\_close\_v2} y finalizar limpiamente con código de salida \texttt{0}.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa05_sigterm_terminacion.jpg}
+        \caption{Manejo de \texttt{SIGTERM}: apagado controlado, cierre de SQLite y salida exitosa (\texttt{exit 0}).}
+        \label{fig:etapa05_sigterm}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa05_sigint_interrupcion.jpg}
+        \caption{Manejo de \texttt{SIGINT}: captura segura de interrupción por teclado y liberación ordenada de recursos.}
+        \label{fig:etapa05_sigint}
+    \end{subfigure}
+    \caption{Comportamiento determinista del daemon ante señales de terminación del sistema operativo.}
+    \label{fig:etapa05_apagado}
+\end{figure}
+
+Adicionalmente, se demostró la capacidad de recarga en caliente enviando la señal \texttt{SIGHUP} (Figura~\ref{fig:etapa05_recarga}). El daemon relee \texttt{nexus.conf}, actualiza su configuración interna de logging y continúa atendiendo peticiones concurrentes sin alterar su PID ni desconectar clientes activos.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth,height=5.2cm,keepaspectratio]{images/etapa05_sighup_recarga.jpg}
+    \caption{Recarga en caliente ante \texttt{SIGHUP}: relectura de directivas operacionales en journald sin reiniciar el proceso.}
+    \label{fig:etapa05_recarga}
+\end{figure}
 
 % ==============================================================================
 % ETAPA 06 — NEXUSD COMO SERVICIO
@@ -744,6 +879,91 @@ WantedBy=multi-user.target
     \end{itemize}
 \end{pregunta}
 
+\subsection{Verificación Experimental del Servicio en systemd}
+
+La integración de \texttt{nexusd} en \texttt{systemd} fue validada mediante una serie de ensayos operativos cubriendo el ciclo de vida completo del servicio: puesta en marcha, auditoría de seguridad, resiliencia ante caídas inesperadas, parada voluntaria, recarga y autoarranque tras reinicio del servidor.
+
+En la Figura~\ref{fig:etapa06_inicio_seguridad}(a) se evidencia la inicialización mediante \texttt{systemctl start nexus.service}, confirmándose el estado \texttt{active (running)} y la ejecución estricta bajo el usuario sin privilegios \texttt{nexus}. En la Figura~\ref{fig:etapa06_inicio_seguridad}(b) se documenta la habilitación del servicio (\texttt{systemctl enable}) y el análisis de endurecimiento con \texttt{systemd-analyze security}, certificando un nivel de exposición seguro (\textit{OK}) gracias al confinamiento de namespaces y directivas restrictivas.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_arrancar_servicio.jpg}
+        \caption{Arranque del servicio con \texttt{systemctl start}: estado \texttt{active (running)} y PID asignado bajo usuario \texttt{nexus}.}
+        \label{fig:etapa06_start}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_puntaje_habilitacion.jpg}
+        \caption{Habilitación (\texttt{enable}) y auditoría de seguridad con \texttt{systemd-analyze security nexus.service}.}
+        \label{fig:etapa06_security}
+    \end{subfigure}
+    \caption{Puesta en servicio, autoarranque y análisis de endurecimiento (\textit{hardening}) bajo systemd.}
+    \label{fig:etapa06_inicio_seguridad}
+\end{figure}
+
+Para validar la tolerancia a fallos, se provocó una caída forzada del proceso emitiendo \texttt{kill -9} sobre su PID (Figura~\ref{fig:etapa06_resiliencia}(a)). Systemd detectó la muerte anómala por señal y, en virtud de la directiva \texttt{Restart=on-failure}, revivió automáticamente el servicio asignando un nuevo PID tras el intervalo de espera configurado. En contraste, cuando el administrador ejecuta una parada deliberada con \texttt{systemctl stop} (Figura~\ref{fig:etapa06_resiliencia}(b)), systemd reconoce el apagado administrativo y mantiene la unidad en estado \texttt{inactive (dead)} sin intentar reiniciarla.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_caida_forzada.jpg}
+        \caption{Caída forzada (\texttt{kill -9}): disparo inmediato de \texttt{Restart=on-failure} levantando nueva instancia con nuevo PID.}
+        \label{fig:etapa06_caida}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_parada_deliberada.jpg}
+        \caption{Parada deliberada (\texttt{systemctl stop}): terminación ordenada quedando en \texttt{inactive (dead)} sin autorestart.}
+        \label{fig:etapa06_parada}
+    \end{subfigure}
+    \caption{Comportamiento de supervisión de systemd: reinicio automático ante fallas críticas versus detención controlada.}
+    \label{fig:etapa06_resiliencia}
+\end{figure}
+
+Asimismo, se comprobó la recarga del servicio en caliente invocando \texttt{systemctl reload nexus} (Figura~\ref{fig:etapa06_recarga_reinicio}(a)), la cual canaliza la señal \texttt{SIGHUP} al proceso sin alterar el PID. Para certificar la persistencia real y el autoarranque, se reinició el servidor \texttt{sector-core} mediante \texttt{sudo reboot} (Figura~\ref{fig:etapa06_recarga_reinicio}(b)). Tras el reinicio, se comprobó que el servicio arrancó de forma autónoma durante el booteo del sistema operativo y que todos los registros de la base de datos persistieron inalterados.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_recarga_servicio.jpg}
+        \caption{Recarga en caliente mediante \texttt{systemctl reload nexus}: relectura de configuración conservando el PID principal.}
+        \label{fig:etapa06_reload}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_reinicio_comprobacion.jpg}
+        \caption{Supervivencia a reinicio (\texttt{reboot}): autoarranque autónomo del servicio y verificación de datos persistidos.}
+        \label{fig:etapa06_reboot}
+    \end{subfigure}
+    \caption{Mantenimiento y persistencia: recarga en caliente y comprobación experimental de supervivencia tras reinicio del host.}
+    \label{fig:etapa06_recarga_reinicio}
+\end{figure}
+
+Por último, se verificó la idempotencia del script automatizado de instalación del servicio (Figura~\ref{fig:etapa06_idempotencia}). Al ejecutarse múltiples veces consecutivas sobre un sistema ya configurado, el instalador detecta los artefactos existentes, preserva los archivos de configuración y mantiene el servicio activo sin generar colisiones ni estados corruptos.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth,height=5.2cm,keepaspectratio]{images/etapa06_instalador_idempotente.jpg}
+    \caption{Verificación de idempotencia del script de instalación: ejecución consecutiva conservando configuraciones y servicio activo.}
+    \label{fig:etapa06_idempotencia}
+\end{figure}
+
+Para finalizar la verificación del servicio, se evaluó la observabilidad y el confinamiento de privilegios en tiempo real (Figura~\ref{fig:etapa06_observabilidad}). Mediante \texttt{ps aux} se certificó que el proceso binario corre bajo el UID segregado del usuario \texttt{nexus} (cumpliendo con la prohibición estricta de ejecución como \texttt{root}), mientras que mediante \texttt{journalctl -u nexus.service} se comprobó la recolección centralizada y estructurada de las trazas del servicio en el subsistema journald.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth,height=5.8cm,keepaspectratio]{images/etapa06_ps_journalctl.png}
+    \caption{Observabilidad y confinamiento: verificación de ejecución bajo usuario \texttt{nexus} (\texttt{ps aux}) y auditoría de eventos en tiempo real con \texttt{journalctl -u nexus.service}.}
+    \label{fig:etapa06_observabilidad}
+\end{figure}
+
 % ==============================================================================
 % ETAPA 07 — CLIENTE REMOTO
 % ==============================================================================
@@ -812,6 +1032,64 @@ ssh -N -L 8080:127.0.0.1:8080 nexus@sector-core &
     Este comando abre un socket local en \texttt{field-terminal} en el puerto 8080 y encapsula todo el tráfico a través del túnel seguro cifrado SSH-2 hacia el puerto 8080 local de \texttt{sector-core}. De esta forma, \texttt{nexus-client.sh} realiza peticiones a \texttt{http://127.0.0.1:8080} y alcanza la API sin exponer el daemon a la red, anticipando el esquema de seguridad perimetral que culminará en el Capítulo 3 con Nginx.
 \end{pregunta}
 
+\subsection{Verificación Experimental de la Operación Remota y Manejo de Errores}
+
+La operación del sector desde la terminal de campo (\texttt{field-terminal}) fue validada mediante la ejecución del script Bash \texttt{nexus-client.sh}, haciendo uso del túnel SSH local para alcanzar el socket en \texttt{127.0.0.1:8080} de \texttt{sector-core}.
+
+En la Figura~\ref{fig:etapa07_tunel_alta}(a) se muestra la disposición operativa en doble terminal: en una consola se mantiene activo el túnel SSH en segundo plano, mientras que en la terminal contigua se ejecutan exitosamente los comandos de diagnóstico de salud (\texttt{health}) y consulta de incidentes (\texttt{list-incidents}). En la Figura~\ref{fig:etapa07_tunel_alta}(b) se documenta el alta remota de un incidente mediante \texttt{create-incident}, verificando la construcción segura del JSON con \texttt{jq} y la respuesta estructurada del servidor.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa07_cliente_tunel_ssh.jpg}
+        \caption{Operación remota por túnel SSH: túnel en una consola y ejecución de \texttt{health} y \texttt{list-incidents} en la otra.}
+        \label{fig:etapa07_tunel}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa07_alta_incidente.jpg}
+        \caption{Alta de incidente desde \texttt{field-terminal}: serialización de datos y confirmación de creación en la API.}
+        \label{fig:etapa07_alta}
+    \end{subfigure}
+    \caption{Operación de la API de \texttt{nexusd} desde \texttt{field-terminal} a través de túnel SSH-2 seguro.}
+    \label{fig:etapa07_tunel_alta}
+\end{figure}
+
+Para certificar la robustez del cliente Bash y el cumplimiento de las buenas prácticas de programación de scripts de sistema, se evaluaron los distintos escenarios de error y sus códigos de salida (Figura~\ref{fig:etapa07_errores_script}):
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Recurso Inexistente (Error 404):} La API responde \texttt{404 Not Found}; el cliente captura el código HTTP vía \texttt{-w "\%\{http\_code\}"}, informa el suceso en \texttt{stderr} y retorna un código de salida no nulo (Figura~\ref{fig:etapa07_errores_script}(a)).
+    \item \textbf{Error de Uso / Parámetros (Código 1):} Al invocar el script con argumentos insuficientes o sintaxis inválida, se imprime la guía de ayuda y se finaliza con código \texttt{1} (Figura~\ref{fig:etapa07_errores_script}(b)).
+    \item \textbf{Sin Conexión de Red / Socket Caído (Código 2):} Ante la ausencia del túnel SSH o caída del daemon remoto, \texttt{curl} fracasa en Capa 4 y el cliente captura la anomalía, informando que el servidor no responde y saliendo con código \texttt{2} (Figura~\ref{fig:etapa07_errores_script}(c)).
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{images/etapa07_error_api_404.png}
+        \caption{Error de API (404) ante recurso no existente.}
+        \label{fig:etapa07_err_404}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{images/etapa07_error_uso_codigo1.png}
+        \caption{Error de uso: argumentos inválidos y salida con código 1.}
+        \label{fig:etapa07_err_uso}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{images/etapa07_sin_conexion_codigo2.jpg}
+        \caption{Falla de conexión de red y salida con código 2.}
+        \label{fig:etapa07_err_red}
+    \end{subfigure}
+    \caption{Tratamiento semántico de errores y códigos de salida en el cliente Bash \texttt{nexus-client.sh}.}
+    \label{fig:etapa07_errores_script}
+\end{figure}
+
 % ==============================================================================
 % ETAPA 08 — PRUEBAS AUTOMATIZADAS
 % ==============================================================================
@@ -842,6 +1120,26 @@ Para asegurar la confiabilidad del daemon y su reproducibilidad en entornos de i
         \bottomrule
     \end{tabularx}
 \end{table}
+
+\subsection{Verificación Experimental con la Batería de Pruebas CMocka}
+
+La suite de pruebas fue ejecutada de forma automatizada mediante el comando unificado \texttt{make test}. En la Figura~\ref{fig:etapa08_pruebas} se observa la salida emitida por el ejecutable de pruebas basado en CMocka, certificando que los 7 casos de prueba exigidos por la cátedra fueron ejecutados con un 100\% de éxito (\texttt{[  PASSED  ] 7 test(s)}):
+\begin{itemize}[leftmargin=*]
+    \item Confirmación de persistencia y recuperación idéntica tras inserción válida.
+    \item Rechazo atómico (\texttt{400}) ante payloads con campos requeridos omitidos.
+    \item Manejo semántico (\texttt{404}) de consultas con identificadores inexistentes.
+    \item Resiliencia ante fallos forzados de la base de datos sin caída del proceso.
+    \item Rechazo seguro ante JSON malformado con descripción del fallo de sintaxis.
+    \item Apagado limpio y consistencia de SQLite tras emisión de señal \texttt{SIGTERM}.
+    \item Chequeo sincrónico de salud en \texttt{/health} validando aplicación y base de datos simultáneamente.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth,height=6.2cm,keepaspectratio]{images/etapa08_pruebas_cmocka.jpg}
+    \caption{Ejecución exitosa de la suite completa de pruebas unitarias y de integración con CMocka (7/7 superadas).}
+    \label{fig:etapa08_pruebas}
+\end{figure}
 
 % ==============================================================================
 % PROCEDIMIENTO DE DEMOSTRACIÓN TÉCNICA
@@ -884,7 +1182,7 @@ La implementación integral del Trabajo Práctico N$^\circ$ 2: \textbf{“Regist
     \item \textbf{Segregación de Responsabilidades (Aplicación vs. Sistema Operativo):} Se logró delimitar con precisión qué tareas corresponden a la lógica del software (validación de datos, transaccionalidad relacional, contratos de interfaz REST) y cuáles son delegadas con solvencia al sistema operativo anfitrión (gestión del ciclo de vida, políticas de reinicio ante fallas, aislamiento de recursos mediante cgroups/namespaces y recolección centralizada de registros con journald).
     \item \textbf{Seguridad y Mínimo Privilegio en Daemons:} La ejecución de \texttt{nexusd} como servicio confinado bajo una cuenta sin privilegios (\texttt{nexus}) y protegido por directivas de endurecimiento en la unidad de systemd (\texttt{ProtectSystem}, \texttt{PrivateTmp}) neutraliza potenciales vulnerabilidades en el espacio de usuario, impidiendo accesos no autorizados al núcleo del servidor.
     \item \textbf{Integridad Transaccional y Tolerancia a Fallos:} La adopción de SQLite articulada con el manejo asíncrono seguro de señales POSIX (\texttt{SIGTERM}, \texttt{SIGHUP}) confirmó empíricamente que un servicio de sistema debe ser concebido para soportar terminaciones imprevistas o recargas en caliente sin comprometer jamás la consistencia física de la persistencia de datos.
-    \item \textbf{Bases para la Exposición Perimetral:} Al mantener el demonio confinado en loopback (\texttt{127.0.0.1:8080}) y consumido temporalmente vía SSH desde \texttt{field-terminal}, el sistema queda plenamente preparado para la integración del reverse proxy Nginx y la securización perimetral que se consolidará en el Capítulo 3.
+    \item \textbf{Bases para la Exposición Perimetral:} Al mantener el demonio confinado en loopback (\texttt{127.0.0.1}) y operado vía SSH desde \texttt{field-terminal}, el sistema queda plenamente preparado para la integración del reverse proxy Nginx en el Capítulo 3.
 \end{enumerate}
 
 \vspace{0.2cm}
