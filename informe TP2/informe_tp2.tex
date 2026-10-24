@@ -1,4 +1,4 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[10pt,a4paper]{article}
 
 % --- Paquetes de configuración regional y tipografía ---
 \usepackage[utf8]{inputenc}
@@ -7,8 +7,8 @@
 \usepackage{lmodern}
 \usepackage{microtype}
 
-% --- Geometría y márgenes ---
-\usepackage[a4paper,top=2cm,bottom=2cm,left=1.9cm,right=1.9cm,headheight=14pt]{geometry}
+% --- Geometría y márgenes optimizados para máximo 15 páginas ---
+\usepackage[a4paper,top=1.6cm,bottom=1.6cm,left=1.5cm,right=1.5cm,headheight=13pt,footskip=18pt]{geometry}
 
 % --- Elementos gráficos y tablas ---
 \usepackage{graphicx}
@@ -25,17 +25,18 @@
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, babel}
 
 % --- Espaciados compactos ---
-\setlength{\parskip}{2.5pt plus 1pt minus 1pt}
-\setlength{\intextsep}{6pt plus 2pt minus 2pt}
-\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
-\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\parskip}{1.8pt plus 0.6pt minus 0.4pt}
+\setlength{\intextsep}{3pt plus 1pt minus 1pt}
+\setlength{\textfloatsep}{4pt plus 1pt minus 1pt}
+\setlength{\floatsep}{3pt plus 1pt minus 1pt}
 
 % --- Estilo de encabezados y pies de página ---
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{titlesec}
 \usepackage{enumitem}
-\setlist{topsep=2pt, itemsep=1.5pt, parsep=0pt, partopsep=0pt}
+\setlist{topsep=1.5pt, itemsep=1.0pt, parsep=0pt, partopsep=0pt}
+\renewcommand{\arraystretch}{0.96}
 
 % --- Cajas estilizadas y código ---
 \usepackage{tcolorbox}
@@ -85,19 +86,19 @@
 
 % --- Configuración de Títulos de Sección Compactos ---
 \titleformat{\section}
-  {\large\bfseries\color{uncblue}}
-  {\thesection.}{0.6em}{}[\titlerule]
-\titlespacing*{\section}{0pt}{1.3ex plus 0.3ex minus .2ex}{0.6ex plus .2ex}
+  {\normalsize\bfseries\color{uncblue}}
+  {\thesection.}{0.5em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{1.0ex plus 0.2ex minus .1ex}{0.35ex plus .1ex}
 
 \titleformat{\subsection}
-  {\normalsize\bfseries\color{primary}}
-  {\thesubsection.}{0.5em}{}
-\titlespacing*{\subsection}{0pt}{1.0ex plus 0.3ex minus .2ex}{0.4ex plus .2ex}
+  {\small\bfseries\color{primary}}
+  {\thesubsection.}{0.4em}{}
+\titlespacing*{\subsection}{0pt}{0.7ex plus 0.2ex minus .1ex}{0.25ex plus .1ex}
 
 \titleformat{\subsubsection}
-  {\small\bfseries\color{accentteal}}
-  {\thesubsubsection.}{0.4em}{}
-\titlespacing*{\subsubsection}{0pt}{0.8ex plus 0.2ex minus .1ex}{0.3ex plus .1ex}
+  {\footnotesize\bfseries\color{accentteal}}
+  {\thesubsubsection.}{0.3em}{}
+\titlespacing*{\subsubsection}{0pt}{0.5ex plus 0.1ex minus .1ex}{0.2ex plus .1ex}
 
 % --- Configuración de Entornos de Terminal y Cajas ---
 \newtcblisting{terminalbox}[2][]{
@@ -106,12 +107,14 @@
     colframe=uncblue!90,
     coltitle=white,
     title={\scriptsize\bfseries\texttt{\detokenize{#2}}},
-    arc=2mm,
-    boxrule=0.8pt,
-    left=2.5mm,
-    right=2.5mm,
-    top=1.5mm,
-    bottom=1.5mm,
+    arc=1.5mm,
+    boxrule=0.7pt,
+    left=2.0mm,
+    right=2.0mm,
+    top=1.0mm,
+    bottom=1.0mm,
+    before skip=2.0pt,
+    after skip=2.0pt,
     listing only,
     listing options={
         backgroundcolor=\color{termbg},
@@ -135,14 +138,14 @@
     colframe=uncblue!75,
     fonttitle=\footnotesize\bfseries\color{white},
     title={Pregunta de Investigación: #1},
-    arc=1.5mm,
-    boxrule=0.6pt,
-    left=2.5mm,
-    right=2.5mm,
-    top=1mm,
-    bottom=1mm,
-    before skip=2.5pt,
-    after skip=2.5pt
+    arc=1.2mm,
+    boxrule=0.5pt,
+    left=2.0mm,
+    right=2.0mm,
+    top=0.7mm,
+    bottom=0.7mm,
+    before skip=1.5pt,
+    after skip=1.5pt
 }
 
 \newtcolorbox{notabox}[1][Nota Técnica]{
@@ -153,12 +156,14 @@
     coltitle=white,
     fonttitle=\footnotesize\bfseries\color{white},
     title={\textbf{#1}},
-    arc=1.5mm,
-    boxrule=0.8pt,
-    left=2.5mm,
-    right=2.5mm,
-    top=1.5mm,
-    bottom=1.5mm
+    arc=1.2mm,
+    boxrule=0.6pt,
+    left=2.0mm,
+    right=2.0mm,
+    top=1.0mm,
+    bottom=1.0mm,
+    before skip=2.0pt,
+    after skip=2.0pt
 }
 
 \lstset{
@@ -190,19 +195,19 @@
     
     \begin{figure}[H]
         \centering
-        \includegraphics[width=0.38\textwidth]{logo_unc.png}
+        \includegraphics[width=0.28\textwidth]{logo_unc.png}
     \end{figure}
     
-    \vspace{0.2cm}
-    {\large\scshape\bfseries UNIVERSIDAD NACIONAL DE CÓRDOBA}\\[0.15cm]
-    {\large\scshape FACULTAD DE CIENCIAS EXACTAS, FÍSICAS Y NATURALES}\\[0.2cm]
-    {\normalsize\scshape DEPARTAMENTO DE COMPUTACIÓN}\\[0.6cm]
+    \vspace{0.1cm}
+    {\large\scshape\bfseries UNIVERSIDAD NACIONAL DE CÓRDOBA}\\[0.1cm]
+    {\large\scshape FACULTAD DE CIENCIAS EXACTAS, FÍSICAS Y NATURALES}\\[0.15cm]
+    {\normalsize\scshape DEPARTAMENTO DE COMPUTACIÓN}\\[0.35cm]
     
-    \rule{\linewidth}{1.2pt}\\[0.3cm]
-    {\LARGE\bfseries\color{uncblue} SISTEMAS OPERATIVOS I}\\[0.2cm]
-    {\Large\bfseries\color{primary} Trabajo Práctico Nro 2: “Registro Central NEXUS”}\\[0.15cm]
+    \rule{\linewidth}{1.2pt}\\[0.25cm]
+    {\LARGE\bfseries\color{uncblue} SISTEMAS OPERATIVOS I}\\[0.15cm]
+    {\Large\bfseries\color{primary} Trabajo Práctico Nro 2: “Registro Central NEXUS”}\\[0.12cm]
     {\large\itshape\color{accentteal} Capítulo 2 · Daemon de Sistema, Persistencia e Integración de Servicios}
-    \rule{\linewidth}{1.2pt}\\[0.8cm]
+    \rule{\linewidth}{1.2pt}\\[0.5cm]
     
     \vfill
     
@@ -338,7 +343,7 @@ En la Figura~\ref{fig:etapa01_arbol} se presenta la estructura de directorios y 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth,height=5.8cm,keepaspectratio]{images/etapa01_estructura_modulos.png}
+    \includegraphics[width=0.82\textwidth,height=3.5cm,keepaspectratio]{images/etapa01_estructura_modulos.png}
     \caption{Árbol de directorios y organización de submódulos en el código fuente de \texttt{nexusd}.}
     \label{fig:etapa01_arbol}
 \end{figure}
@@ -359,18 +364,18 @@ El esquema contempla las entidades requeridas con restricciones estrictas de int
     \footnotesize
     \caption{Definición de entidades y atributos requeridos para la base de datos de \texttt{nexusd}.}
     \label{tab:entidades_sqlite}
-    \begin{tabularx}{\textwidth}{llX}
+    \begin{tabularx}{\textwidth}{p{1.7cm} >{\raggedright\arraybackslash}p{3.8cm} X}
         \toprule
         \rowcolor{tableheader}
         \textbf{Entidad} & \textbf{Atributos Principales} & \textbf{Restricciones / Reglas de Validación} \\
         \midrule
-        \textbf{Unidad} & \texttt{id, designation, model, status, sector, created\_at} & \texttt{designation} único; \texttt{status} restringido a valores operativos válidos. \\
+        \textbf{Unidad} & \texttt{id}, \texttt{designation}, \texttt{model}, \texttt{status}, \texttt{sector}, \texttt{created\_at} & \texttt{designation} único (\texttt{UNIQUE}). \texttt{status} restringido a valores operativos válidos: \textit{active}, \textit{standby}, \textit{maintenance}, \textit{decommissioned}. \\
         \rowcolor{rowalt}
-        \textbf{Operador} & \texttt{id, name, clearance\_level, active, created\_at} & \texttt{clearance\_level} entero no negativo; \texttt{active} booleano (\texttt{0} o \texttt{1}). \\
-        \textbf{Incidente} & \texttt{id, unit\_id, operator\_id, severity, description, status, created\_at, updated\_at} & FK a unidades y operadores; severidad (\textit{low, medium, high, critical}); estado (\textit{open, investigating, resolved, closed}). \\
+        \textbf{Operador} & \texttt{id}, \texttt{name}, \texttt{clearance\_level}, \texttt{active}, \texttt{created\_at} & \texttt{clearance\_level} entero no negativo ($\ge 0$). \texttt{active} valor booleano binario (\texttt{0} o \texttt{1}). \\
+        \textbf{Incidente} & \texttt{id}, \texttt{unit\_id}, \texttt{operator\_id}, \texttt{severity}, \texttt{description}, \texttt{status}, \texttt{created\_at}, \texttt{updated\_at} & Claves foráneas hacia \texttt{units} y \texttt{operators}. Dominio de \texttt{severity}: \textit{low}, \textit{medium}, \textit{high}, \textit{critical}. Dominio de \texttt{status}: \textit{open}, \textit{investigating}, \textit{resolved}, \textit{closed}. \\
         \rowcolor{rowalt}
-        \textbf{Evidencia} & \texttt{id, incident\_id, filename, checksum, uploaded\_at} & FK a incidente; \texttt{checksum} SHA-256 en hexadecimal (64 caracteres). \\
-        \textbf{Auditoría} & \texttt{id, actor, action, resource, result, timestamp} & Registro inmutable; disparado ante creación o modificación de recursos. \\
+        \textbf{Evidencia} & \texttt{id}, \texttt{incident\_id}, \texttt{filename}, \texttt{checksum}, \texttt{uploaded\_at} & Clave foránea referencial a incidente. \texttt{checksum} SHA-256 en codificación hexadecimal (longitud exacta de 64 caracteres). \\
+        \textbf{Auditoría} & \texttt{id}, \texttt{actor}, \texttt{action}, \texttt{resource}, \texttt{result}, \texttt{timestamp} & Registro append-only inmutable. Disparado automáticamente ante operaciones de creación o alteración de estado. \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -461,7 +466,7 @@ En la Figura~\ref{fig:etapa02_persistencia} se documenta la inspección directa 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth,height=5.8cm,keepaspectratio]{images/etapa02_persistencia_sqlite.png}
+    \includegraphics[width=0.82\textwidth,height=3.5cm,keepaspectratio]{images/etapa02_persistencia_sqlite.png}
     \caption{Inspección del esquema relacional y estado de las tablas en SQLite mediante la CLI \texttt{sqlite3}.}
     \label{fig:etapa02_persistencia}
 \end{figure}
@@ -480,7 +485,7 @@ El daemon \texttt{nexusd} expone una interfaz de programación de aplicaciones (
     \footnotesize
     \caption{Catálogo de operaciones expuestas por la API de \texttt{nexusd}.}
     \label{tab:api_endpoints}
-    \begin{tabularx}{\textwidth}{llp{5.5cm}l}
+    \begin{tabularx}{\textwidth}{llXl}
         \toprule
         \rowcolor{tableheader}
         \textbf{Método} & \textbf{Ruta / Endpoint} & \textbf{Propósito / Operación} & \textbf{Códigos HTTP} \\
@@ -539,14 +544,14 @@ En primer lugar, se validó la capacidad de listar las entidades existentes y co
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_a_listar.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa03_prueba_a_listar.jpg}
         \caption{Prueba A: Listado y consulta en detalle de incidentes registrados vía \texttt{GET /api/v1/incidents}.}
         \label{fig:etapa03_prueba_a}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_b_cambiar_estado.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa03_prueba_b_cambiar_estado.jpg}
         \caption{Prueba B: Transición de estado a través de la ruta oficial con \texttt{PATCH /api/v1/incidents/\{id\}/status}.}
         \label{fig:etapa03_prueba_b}
     \end{subfigure}
@@ -560,14 +565,14 @@ Posteriormente, se verificó la gestión de evidencias digitales asociadas a inc
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_c_evidencia.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa03_prueba_c_evidencia.jpg}
         \caption{Prueba C: Alta de evidencia digital con verificación estricta de checksum SHA-256 y consulta posterior.}
         \label{fig:etapa03_prueba_c}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa03_prueba_d_auditoria.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa03_prueba_d_auditoria.jpg}
         \caption{Prueba D: Registro inmutable de eventos en la tabla de auditoría ante cada acción relevante.}
         \label{fig:etapa03_prueba_d}
     \end{subfigure}
@@ -579,7 +584,7 @@ Por último, se puso a prueba la robustez del servidor ante casos de error lími
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth,height=5.8cm,keepaspectratio]{images/etapa03_prueba_e_errores.jpg}
+    \includegraphics[width=0.85\textwidth,height=3.4cm,keepaspectratio]{images/etapa03_prueba_e_errores.jpg}
     \caption{Prueba E: Validación de semántica y códigos de error HTTP ante checksum inválido, incidente inexistente e ID malformado.}
     \label{fig:etapa03_errores}
 \end{figure}
@@ -657,14 +662,14 @@ Se constató empíricamente que el daemon \texttt{nexusd} respeta estrictamente 
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.5cm,keepaspectratio]{images/etapa04_config_nexus.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa04_config_nexus.jpg}
         \caption{Inspección de directivas en \texttt{/etc/nexus/nexus.conf}.}
         \label{fig:etapa04_conf_file}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.5cm,keepaspectratio]{images/etapa04_configuracion_conf.png}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa04_configuracion_conf.png}
         \caption{Arranque del daemon aplicando los parámetros leídos.}
         \label{fig:etapa04_conf_run}
     \end{subfigure}
@@ -742,14 +747,14 @@ En la Figura~\ref{fig:etapa05_apagado} se aprecian las pruebas de apagado ordena
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa05_sigterm_terminacion.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa05_sigterm_terminacion.jpg}
         \caption{Manejo de \texttt{SIGTERM}: apagado controlado, cierre de SQLite y salida exitosa (\texttt{exit 0}).}
         \label{fig:etapa05_sigterm}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa05_sigint_interrupcion.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa05_sigint_interrupcion.jpg}
         \caption{Manejo de \texttt{SIGINT}: captura segura de interrupción por teclado y liberación ordenada de recursos.}
         \label{fig:etapa05_sigint}
     \end{subfigure}
@@ -761,7 +766,7 @@ Adicionalmente, se demostró la capacidad de recarga en caliente enviando la se�
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth,height=5.2cm,keepaspectratio]{images/etapa05_sighup_recarga.jpg}
+    \includegraphics[width=0.82\textwidth,height=3.2cm,keepaspectratio]{images/etapa05_sighup_recarga.jpg}
     \caption{Recarga en caliente ante \texttt{SIGHUP}: relectura de directivas operacionales en journald sin reiniciar el proceso.}
     \label{fig:etapa05_recarga}
 \end{figure}
@@ -889,14 +894,14 @@ En la Figura~\ref{fig:etapa06_inicio_seguridad}(a) se evidencia la inicializaci�
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_arrancar_servicio.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa06_arrancar_servicio.jpg}
         \caption{Arranque del servicio con \texttt{systemctl start}: estado \texttt{active (running)} y PID asignado bajo usuario \texttt{nexus}.}
         \label{fig:etapa06_start}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_puntaje_habilitacion.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa06_puntaje_habilitacion.jpg}
         \caption{Habilitación (\texttt{enable}) y auditoría de seguridad con \texttt{systemd-analyze security nexus.service}.}
         \label{fig:etapa06_security}
     \end{subfigure}
@@ -910,14 +915,14 @@ Para validar la tolerancia a fallos, se provocó una caída forzada del proceso 
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_caida_forzada.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa06_caida_forzada.jpg}
         \caption{Caída forzada (\texttt{kill -9}): disparo inmediato de \texttt{Restart=on-failure} levantando nueva instancia con nuevo PID.}
         \label{fig:etapa06_caida}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_parada_deliberada.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa06_parada_deliberada.jpg}
         \caption{Parada deliberada (\texttt{systemctl stop}): terminación ordenada quedando en \texttt{inactive (dead)} sin autorestart.}
         \label{fig:etapa06_parada}
     \end{subfigure}
@@ -929,16 +934,15 @@ Asimismo, se comprobó la recarga del servicio en caliente invocando \texttt{sys
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.48\textwidth}
+    \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_recarga_servicio.jpg}
+        \includegraphics[width=0.88\textwidth,height=1.5cm,keepaspectratio]{images/etapa06_recarga_servicio.jpg}
         \caption{Recarga en caliente mediante \texttt{systemctl reload nexus}: relectura de configuración conservando el PID principal.}
         \label{fig:etapa06_reload}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
+    \end{subfigure}\\[0.15cm]
+    \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.2cm,keepaspectratio]{images/etapa06_reinicio_comprobacion.jpg}
+        \includegraphics[width=0.92\textwidth,height=4.8cm,keepaspectratio]{images/etapa06_reinicio_compacta.jpg}
         \caption{Supervivencia a reinicio (\texttt{reboot}): autoarranque autónomo del servicio y verificación de datos persistidos.}
         \label{fig:etapa06_reboot}
     \end{subfigure}
@@ -950,7 +954,7 @@ Por último, se verificó la idempotencia del script automatizado de instalació
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth,height=5.2cm,keepaspectratio]{images/etapa06_instalador_idempotente.jpg}
+    \includegraphics[width=0.82\textwidth,height=3.2cm,keepaspectratio]{images/etapa06_instalador_idempotente.jpg}
     \caption{Verificación de idempotencia del script de instalación: ejecución consecutiva conservando configuraciones y servicio activo.}
     \label{fig:etapa06_idempotencia}
 \end{figure}
@@ -959,7 +963,7 @@ Para finalizar la verificación del servicio, se evaluó la observabilidad y el 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth,height=5.8cm,keepaspectratio]{images/etapa06_ps_journalctl.png}
+    \includegraphics[width=0.82\textwidth,height=3.5cm,keepaspectratio]{images/etapa06_ps_journalctl.png}
     \caption{Observabilidad y confinamiento: verificación de ejecución bajo usuario \texttt{nexus} (\texttt{ps aux}) y auditoría de eventos en tiempo real con \texttt{journalctl -u nexus.service}.}
     \label{fig:etapa06_observabilidad}
 \end{figure}
@@ -1042,14 +1046,14 @@ En la Figura~\ref{fig:etapa07_tunel_alta}(a) se muestra la disposición operativ
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa07_cliente_tunel_ssh.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa07_cliente_tunel_ssh.jpg}
         \caption{Operación remota por túnel SSH: túnel en una consola y ejecución de \texttt{health} y \texttt{list-incidents} en la otra.}
         \label{fig:etapa07_tunel}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=4.3cm,keepaspectratio]{images/etapa07_alta_incidente.jpg}
+        \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa07_alta_incidente.jpg}
         \caption{Alta de incidente desde \texttt{field-terminal}: serialización de datos y confirmación de creación en la API.}
         \label{fig:etapa07_alta}
     \end{subfigure}
@@ -1068,21 +1072,21 @@ Para certificar la robustez del cliente Bash y el cumplimiento de las buenas pr�
     \centering
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{images/etapa07_error_api_404.png}
+        \includegraphics[width=\textwidth,height=2.5cm,keepaspectratio]{images/etapa07_error_api_404.png}
         \caption{Error de API (404) ante recurso no existente.}
         \label{fig:etapa07_err_404}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{images/etapa07_error_uso_codigo1.png}
+        \includegraphics[width=\textwidth,height=2.5cm,keepaspectratio]{images/etapa07_error_uso_codigo1.png}
         \caption{Error de uso: argumentos inválidos y salida con código 1.}
         \label{fig:etapa07_err_uso}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{images/etapa07_sin_conexion_codigo2.jpg}
+        \includegraphics[width=\textwidth,height=2.5cm,keepaspectratio]{images/etapa07_sin_conexion_codigo2.jpg}
         \caption{Falla de conexión de red y salida con código 2.}
         \label{fig:etapa07_err_red}
     \end{subfigure}
@@ -1136,7 +1140,7 @@ La suite de pruebas fue ejecutada de forma automatizada mediante el comando unif
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth,height=6.2cm,keepaspectratio]{images/etapa08_pruebas_cmocka.jpg}
+    \includegraphics[width=0.82\textwidth,height=3.6cm,keepaspectratio]{images/etapa08_pruebas_cmocka.jpg}
     \caption{Ejecución exitosa de la suite completa de pruebas unitarias y de integración con CMocka (7/7 superadas).}
     \label{fig:etapa08_pruebas}
 \end{figure}
