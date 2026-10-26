@@ -230,7 +230,7 @@
             \textbf{Pablo Martinez}\\
             \textbf{Nicolas Melia}\\[0.3cm]
             \textbf{\color{uncblue}Fecha:}\\[0.15cm]
-            Octubre / Noviembre de 2026
+            Octubre de 2026
         \end{flushright}
     \end{minipage}
     
@@ -369,54 +369,23 @@ El esquema contempla las entidades requeridas con restricciones estrictas de int
         \rowcolor{tableheader}
         \textbf{Entidad} & \textbf{Atributos Principales} & \textbf{Restricciones / Reglas de Validación} \\
         \midrule
-        \textbf{Unidad} & \texttt{id}, \texttt{designation}, \texttt{model}, \texttt{status}, \texttt{sector}, \texttt{created\_at} & \texttt{designation} único (\texttt{UNIQUE}). \texttt{status} restringido a valores operativos válidos: \textit{active}, \textit{standby}, \textit{maintenance}, \textit{decommissioned}. \\
+        \textbf{Unidad} & \texttt{id}, \texttt{designation}, \texttt{model}, \texttt{status}, \texttt{sector}, \texttt{created\_at} & \texttt{designation} identificador alfanumérico textual. \texttt{status} restringido a valores válidos: \textit{active}, \textit{standby}, \textit{maintenance}, \textit{decommissioned}. \\
         \rowcolor{rowalt}
         \textbf{Operador} & \texttt{id}, \texttt{name}, \texttt{clearance\_level}, \texttt{active}, \texttt{created\_at} & \texttt{clearance\_level} entero no negativo ($\ge 0$). \texttt{active} valor booleano binario (\texttt{0} o \texttt{1}). \\
-        \textbf{Incidente} & \texttt{id}, \texttt{unit\_id}, \texttt{operator\_id}, \texttt{severity}, \texttt{description}, \texttt{status}, \texttt{created\_at}, \texttt{updated\_at} & Claves foráneas hacia \texttt{units} y \texttt{operators}. Dominio de \texttt{severity}: \textit{low}, \textit{medium}, \textit{high}, \textit{critical}. Dominio de \texttt{status}: \textit{open}, \textit{investigating}, \textit{resolved}, \textit{closed}. \\
+        \textbf{Incidente} & \texttt{id}, \texttt{unit\_id}, \texttt{operator\_id}, \texttt{severity}, \texttt{description}, \texttt{status}, \texttt{created\_at}, \texttt{updated\_at} & Claves foráneas hacia \texttt{units} y \texttt{operators}. Dominios restringidos de \texttt{severity} y \texttt{status}. \\
         \rowcolor{rowalt}
-        \textbf{Evidencia} & \texttt{id}, \texttt{incident\_id}, \texttt{filename}, \texttt{checksum}, \texttt{uploaded\_at} & Clave foránea referencial a incidente. \texttt{checksum} SHA-256 en codificación hexadecimal (longitud exacta de 64 caracteres). \\
-        \textbf{Auditoría} & \texttt{id}, \texttt{actor}, \texttt{action}, \texttt{resource}, \texttt{result}, \texttt{timestamp} & Registro append-only inmutable. Disparado automáticamente ante operaciones de creación o alteración de estado. \\
+        \textbf{Evidencia} & \texttt{id}, \texttt{incident\_id}, \texttt{filename}, \texttt{checksum}, \texttt{uploaded\_at} & Clave foránea referencial a incidente. \texttt{checksum} SHA-256 en codificación hexadecimal (64 caracteres). \\
+        \textbf{Auditoría} & \texttt{id}, \texttt{actor}, \texttt{action}, \texttt{resource}, \texttt{result}, \texttt{timestamp} & Registro append-only inmutable de eventos transaccionales del sistema. \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
 \begin{terminalbox}{sqlite_schema.sql}
-CREATE TABLE IF NOT EXISTS units (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    designation TEXT NOT NULL UNIQUE,
-    model TEXT NOT NULL,
-    status TEXT NOT NULL CHECK(status IN ('active', 'standby', 'maintenance', 'decommissioned')),
-    sector TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS operators (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    clearance_level INTEGER NOT NULL CHECK(clearance_level >= 0),
-    active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS incidents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit_id INTEGER NOT NULL REFERENCES units(id),
-    operator_id INTEGER NOT NULL REFERENCES operators(id),
-    severity TEXT NOT NULL CHECK(severity IN ('low', 'medium', 'high', 'critical')),
-    description TEXT NOT NULL,
-    status TEXT NOT NULL CHECK(status IN ('open', 'investigating', 'resolved', 'closed')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS audit_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    actor TEXT NOT NULL,
-    action TEXT NOT NULL,
-    resource TEXT NOT NULL,
-    result TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE units ( id INTEGER PRIMARY KEY AUTOINCREMENT, designation TEXT NOT NULL, model TEXT NOT NULL, status TEXT NOT NULL, sector TEXT NOT NULL, created_at INTEGER NOT NULL, CHECK (status IN ('active','standby','maintenance','decommissioned')));
+CREATE TABLE operators ( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, clearance_level INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, CHECK (clearance_level >= 0), CHECK (active IN (0, 1)));
+CREATE TABLE incidents ( id INTEGER PRIMARY KEY AUTOINCREMENT, unit_id INTEGER NOT NULL, operator_id INTEGER NOT NULL, severity TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, CHECK (severity IN ('low','medium','high','critical')), CHECK (status IN ('open','investigating','resolved','closed')), FOREIGN KEY (unit_id) REFERENCES units(id), FOREIGN KEY (operator_id) REFERENCES operators(id));
+CREATE TABLE evidence ( id INTEGER PRIMARY KEY AUTOINCREMENT, incident_id INTEGER NOT NULL, filename TEXT NOT NULL, checksum TEXT NOT NULL, uploaded_at INTEGER NOT NULL, FOREIGN KEY (incident_id) REFERENCES incidents(id));
+CREATE TABLE audit_events ( id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL, result TEXT NOT NULL, timestamp INTEGER NOT NULL);
 \end{terminalbox}
 
 \subsection{Fundamentación Teórica y Preguntas de Investigación}
@@ -490,16 +459,24 @@ El daemon \texttt{nexusd} expone una interfaz de programación de aplicaciones (
         \rowcolor{tableheader}
         \textbf{Método} & \textbf{Ruta / Endpoint} & \textbf{Propósito / Operación} & \textbf{Códigos HTTP} \\
         \midrule
-        \texttt{GET} & \texttt{/health} & Verificación del estado de \texttt{nexusd} y conectividad a SQLite. & \texttt{200 OK}, \texttt{503 Service Unavail.} \\
+        \texttt{GET} & \texttt{/health} & Verificación del estado de \texttt{nexusd} y conectividad a SQLite. & \texttt{200}, \texttt{503} \\
         \rowcolor{rowalt}
-        \texttt{GET} & \texttt{/api/v1/units} & Listado completo de unidades operativas del sector. & \texttt{200 OK} \\
-        \texttt{POST} & \texttt{/api/v1/units} & Alta de una nueva unidad operativa. & \texttt{201 Created}, \texttt{400 Bad Request} \\
+        \texttt{GET} & \texttt{/api/v1/units} & Listado completo de unidades operativas del sector. & \texttt{200} \\
+        \texttt{POST} & \texttt{/api/v1/units} & Alta de una nueva unidad operativa. & \texttt{201}, \texttt{400}, \texttt{409} \\
         \rowcolor{rowalt}
-        \texttt{GET} & \texttt{/api/v1/operators} & Listado de operadores registrados en el sistema. & \texttt{200 OK} \\
-        \texttt{POST} & \texttt{/api/v1/operators} & Alta de un nuevo operador en el registro. & \texttt{201 Created}, \texttt{400 Bad Request} \\
+        \texttt{GET} & \texttt{/api/v1/operators} & Listado de operadores registrados en el sistema. & \texttt{200} \\
+        \texttt{POST} & \texttt{/api/v1/operators} & Alta de un nuevo operador en el registro. & \texttt{201}, \texttt{400} \\
         \rowcolor{rowalt}
-        \texttt{POST} & \texttt{/api/v1/incidents} & Registro y asignación de un nuevo incidente. & \texttt{201 Created}, \texttt{400 Bad Request} \\
-        \texttt{PATCH} & \texttt{/api/v1/incidents/\{id\}} & Modificación parcial de estado o severidad de incidente. & \texttt{200 OK}, \texttt{404 Not Found}, \texttt{400} \\
+        \texttt{GET} & \texttt{/api/v1/incidents} & Listado de incidentes registrados en el sector. & \texttt{200} \\
+        \texttt{GET} & \texttt{/api/v1/incidents/\{id\}} & Consulta en detalle de un incidente específico. & \texttt{200}, \texttt{404} \\
+        \rowcolor{rowalt}
+        \texttt{POST} & \texttt{/api/v1/incidents} & Registro y asignación de un nuevo incidente. & \texttt{201}, \texttt{400} \\
+        \texttt{PATCH} & \texttt{/api/v1/incidents/\{id\}} & Actualización del estado de un incidente. & \texttt{200}, \texttt{400}, \texttt{404}, \texttt{422} \\
+        \rowcolor{rowalt}
+        \texttt{GET} & \texttt{/api/v1/incidents/\{id\}/evidence} & Listado de evidencias asociadas a un incidente. & \texttt{200}, \texttt{404} \\
+        \texttt{POST} & \texttt{/api/v1/incidents/\{id\}/evidence} & Alta de nueva evidencia digital en un incidente. & \texttt{201}, \texttt{400}, \texttt{404} \\
+        \rowcolor{rowalt}
+        \texttt{GET} & \texttt{/api/v1/audit} & Consulta del registro inmutable de eventos de auditoría. & \texttt{200} \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -517,6 +494,8 @@ El daemon \texttt{nexusd} expone una interfaz de programación de aplicaciones (
         \item \textbf{Dato Inválido / Malformado -- \texttt{400 Bad Request}:} Indica que el servidor no puede procesar la solicitud debido a un error del cliente: sintaxis JSON inválida, omisión de campos requeridos (ej. falta \texttt{designation} en una unidad), o tipos de datos incompatibles.
         \item \textbf{Recurso Inexistente -- \texttt{404 Not Found}:} El endpoint o identificador numérico solicitado no existe en la base de datos (por ejemplo, intentar modificar mediante \texttt{PATCH /api/v1/incidents/9999} un incidente que no está registrado).
         \item \textbf{Error Interno -- \texttt{500 Internal Server Error}:} Señaliza una falla imprevista en el espacio del servidor: fallo al acceder al archivo SQLite por permisos corruptos, agotamiento de descriptores de archivos, o error inesperado de I/O.
+        \item \textbf{Conflicto de Unicidad -- \texttt{409 Conflict}:} La capa de registro del daemon rechaza una unidad duplicada al intentar dar de alta una designación preexistente en el sistema.
+        \item \textbf{Entidad No Procesable -- \texttt{422 Unprocessable Entity}:} El JSON es sintácticamente válido pero la transición de estado solicitada no está permitida entre los estados del ciclo de vida del incidente (error \texttt{"invalid\_transition"}).
     \end{itemize}
 \end{pregunta}
 
@@ -599,32 +578,35 @@ Siguiendo las mejores prácticas de ingeniería de software de sistemas (los Doc
 \subsection{Estructura del Archivo de Configuración}
 
 \begin{terminalbox}{/etc/nexus/nexus.conf}
-# Archivo de Configuracion del Demonio NEXUS-9 (nexusd)
-# Ubicacion estandar: /etc/nexus/nexus.conf
-# Permisos recomendados: 0640 (propietario root:nexus)
+[server]
+listen_address = 127.0.0.1
+listen_port = 8080
 
-listen_address=127.0.0.1
-listen_port=8080
-database_path=/var/lib/nexus/nexus.db
-evidence_path=/var/lib/nexus/evidence
-log_level=info
+[database]
+database_path = /var/lib/nexus/nexus.db
+
+[storage]
+evidence_path = /var/lib/nexus/evidence
+
+[logging]
+level = info
 \end{terminalbox}
 
 \subsection{Fundamentación Teórica y Preguntas de Investigación}
 
 \begin{pregunta}{¿Qué debería hacer el programa si el archivo no existe? ¿Y si existe pero tiene una línea inválida?}
-    \textbf{Respuesta:}
+    \textbf{Respuesta:} La implementación de \texttt{nexusd} sigue una política estricta de \textbf{Fallo Temprano (\textit{Fail-Fast})}:
     \begin{itemize}[leftmargin=*]
-        \item \textbf{Archivo Inexistente:} En un servicio crítico de infraestructura del sistema operativo, la política adoptada debe ser el principio de \textbf{Fallo Temprano (\textit{Fail-Fast})}. El programa debe escribir un mensaje de error explícito y de nivel crítico en \texttt{stderr} (destinado a journald) indicando la ruta exacta ausente y terminar su ejecución inmediatamente con un código de salida distinto de cero (\texttt{EXIT\_FAILURE}), alertando al administrador sobre un despliegue inconsistente.
-        \item \textbf{Línea Inválida o Malformada:} El analizador sintáctico (\textit{parser}) debe registrar una advertencia descriptiva con el número de línea exacto y el contenido offending. Ante claves desconocidas no críticas, se puede descartar la directiva e informar el suceso; ante parámetros obligatorios corrompidos (como un puerto no numérico o fuera del rango 1-65535), el daemon debe abortar de inmediato para impedir que el servicio opere en un estado impredecible o vulnerable.
+        \item \textbf{Archivo Inexistente:} El programa emite un mensaje de error explícito en \texttt{stderr} indicando la ruta del archivo ausente, se niega a iniciar la ejecución y finaliza de inmediato con código de salida \texttt{1}, alertando al administrador sobre la omisión de la configuración.
+        \item \textbf{Línea, Sección o Valor Inválido:} El analizador sintáctico no tolera ambigüedades. Ante cualquier sección desconocida, clave inexistente, sintaxis rota o valor fuera de dominio (ej. un nivel de log no reconocido o un puerto inválido), el daemon imprime el error detallando el archivo y el número de línea offending, aborta el arranque y termina con código de salida \texttt{1}.
     \end{itemize}
 \end{pregunta}
 
 \begin{pregunta}{¿Conviene arrancar con valores por defecto o negarse a arrancar?}
-    \textbf{Respuesta:} En herramientas de usuario interactivo es común recurrir a valores por defecto, pero en un \textbf{servicio del sistema operativo} la práctica recomendada es una combinación controlada:
+    \textbf{Respuesta:} En un servicio crítico del sistema operativo como \texttt{nexusd}, la práctica profesional y determinista es \textbf{negarse rotundamente a arrancar} ante cualquier anomalía:
     \begin{itemize}[leftmargin=*]
-        \item Parámetros de ajuste operacional (como \texttt{log\_level=info} o timeouts) pueden adoptar valores seguros por defecto documentados si se omiten del archivo.
-        \item Parámetros críticos de entorno (como \texttt{database\_path} o \texttt{listen\_port}) deben existir obligatoriamente o confirmarse contra la configuración instalada. Si el archivo principal de configuración no existe en absoluto, el servicio \textbf{debe negarse a arrancar}. Asumir valores predeterminados silenciosamente puede provocar que el servicio intente escribir en directorios sin permisos o exponer puertos no autorizados sin el conocimiento explícito del administrador de sistemas.
+        \item \textbf{Riesgo de los valores por defecto:} Asumir valores predeterminados de forma silenciosa puede provocar que el servicio intente enlazarse a interfaces no deseadas, intente escribir en rutas sin permisos o degrade el nivel de auditoría sin el conocimiento explícito del administrador de sistemas.
+        \item \textbf{Determinismo estricto:} Por diseño, el daemon no recurre a valores por defecto silenciosos. Cada parámetro operacional debe estar explícitamente configurado y validado en \texttt{/etc/nexus/nexus.conf}. Si el archivo no existe o contiene anomalías, el servicio aborta de inmediato con código \texttt{1}, garantizando que sólo opere bajo un estado enteramente consistente y verificado.
     \end{itemize}
 \end{pregunta}
 
@@ -656,24 +638,24 @@ log_level=info
 
 \subsection{Verificación Experimental de la Configuración Externa}
 
-Se constató empíricamente que el daemon \texttt{nexusd} respeta estrictamente los principios de desacoplamiento de configuración externa. En la Figura~\ref{fig:etapa04_config} se documenta la inspección y lectura de las directivas operacionales: en la subfigura (a) se visualiza el contenido del archivo estandarizado \texttt{/etc/nexus/nexus.conf}, mientras que en la subfigura (b) se comprueba el arranque de \texttt{nexusd} absorbiendo dinámicamente los parámetros de red (\texttt{127.0.0.1:8080}), las rutas al almacén SQLite (\texttt{/var/lib/nexus/nexus.db}) y el nivel de logging sin requerir recompilación ni valores fijos en el código.
+Se constató empíricamente la robustez del manejo de configuración externa en \texttt{nexusd}. En la Figura~\ref{fig:etapa04_config}(a) se documenta el esquema estricto de permisos sobre \texttt{/etc/nexus/nexus.conf} (\texttt{0640}, \texttt{root:nexus}), comprobando que el usuario del servicio lee el archivo sin trabas mientras que un usuario sin privilegios recibe \textit{Permission denied}. En la Figura~\ref{fig:etapa04_config}(b) se valida experimentalmente el comportamiento \textbf{Fail-Fast}: al intentar arrancar el daemon con una ruta inexistente (\texttt{/tmp/no-existe.conf}) o con una directiva inválida (\texttt{level = ruidoso}), el binario emite un mensaje de error descriptivo en \texttt{stderr} y aborta de inmediato con código de salida \texttt{1}, impidiendo la ejecución en estados corrompidos.
 
 \begin{figure}[H]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa04_config_nexus.jpg}
-        \caption{Inspección de directivas en \texttt{/etc/nexus/nexus.conf}.}
+        \caption{Permisos \texttt{0640} (\texttt{root:nexus}): lectura por \texttt{nexus} y denegada a terceros.}
         \label{fig:etapa04_conf_file}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth,height=3.0cm,keepaspectratio]{images/etapa04_configuracion_conf.png}
-        \caption{Arranque del daemon aplicando los parámetros leídos.}
+        \caption{Validación Fail-Fast: aborto (código 1) ante archivo inexistente y valor inválido.}
         \label{fig:etapa04_conf_run}
     \end{subfigure}
-    \caption{Lectura y aplicación dinámica de configuración externa desde \texttt{/etc/nexus/nexus.conf}.}
+    \caption{Gestión de configuración externa: aislamiento de privilegios y tolerancia a fallos (\textit{fail-fast}).}
     \label{fig:etapa04_config}
 \end{figure}
 
@@ -727,7 +709,7 @@ Un proceso de sistema no decide cuándo finaliza ni cuándo su entorno cambia: e
     \begin{itemize}[leftmargin=*]
         \item Las escrituras a medio completar quedan confinadas en el archivo temporal o el log de pre-escritura.
         \item El archivo maestro \texttt{nexus.db} conserva intactas las páginas previas.
-        \item En el siguiente arranque del servicio, el subsistema de SQLite realiza automáticamente la recuperación hacia atrás (\textit{rollback recovery}), restaurando la base al último estado consistente confirmado. \textbf{Bajo ningún concepto la base se corrompe.}
+        \item En el siguiente arranque del servicio, el subsistema de SQLite realiza automáticamente la recuperación hacia atrás (\textit{rollback recovery}), restaurando la base al último estado consistente confirmado. Estos mecanismos protegen la integridad de la base ante la gran mayoría de escenarios de fallo.
     \end{itemize}
 \end{pregunta}
 
@@ -780,26 +762,27 @@ Para integrarse formalmente en el ciclo de vida de la distribución anfitriona (
 
 \subsection{Definición del Servicio \texttt{nexus.service}}
 
+El archivo de unidad define el confinamiento de privilegios, las políticas de resiliencia y las variables de entorno operativas mínimas mediante la directiva \texttt{Environment=}, aislando el entorno de ejecución:
+
 \begin{terminalbox}{/etc/systemd/system/nexus.service}
 [Unit]
-Description=NEXUS-9 Central Registry Daemon
+Description=NEXUS-9 - Registro Central (nexusd)
 After=network.target
 Wants=network.target
-Documentation=https://github.com/kevincufre1/TPs-SO-informes
 
 [Service]
 Type=simple
 User=nexus
 Group=nexus
 WorkingDirectory=/var/lib/nexus
-ExecStart=/usr/local/bin/nexusd
+Environment=NEXUS_ENV=production
+ExecStart=/usr/local/bin/nexusd -c /etc/nexus/nexus.conf
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5s
 KillMode=mixed
 TimeoutStopSec=10s
-
-# Seguridad y Hardening del Servicio
+UMask=0027
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/nexus
@@ -930,24 +913,13 @@ Para validar la tolerancia a fallos, se provocó una caída forzada del proceso 
     \label{fig:etapa06_resiliencia}
 \end{figure}
 
-Asimismo, se comprobó la recarga del servicio en caliente invocando \texttt{systemctl reload nexus} (Figura~\ref{fig:etapa06_recarga_reinicio}(a)), la cual canaliza la señal \texttt{SIGHUP} al proceso sin alterar el PID. Para certificar la persistencia real y el autoarranque, se reinició el servidor \texttt{sector-core} mediante \texttt{sudo reboot} (Figura~\ref{fig:etapa06_recarga_reinicio}(b)). Tras el reinicio, se comprobó que el servicio arrancó de forma autónoma durante el booteo del sistema operativo y que todos los registros de la base de datos persistieron inalterados.
+Para certificar la persistencia real y el autoarranque, se reinició el servidor \texttt{sector-core} mediante \texttt{sudo reboot} (Figura~\ref{fig:etapa06_reboot}). Tras el reinicio del sistema operativo, se comprobó que el servicio \texttt{nexus.service} arrancó de forma autónoma durante el booteo y que todos los registros de la base de datos persistieron inalterados.
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=0.88\textwidth,height=1.5cm,keepaspectratio]{images/etapa06_recarga_servicio.jpg}
-        \caption{Recarga en caliente mediante \texttt{systemctl reload nexus}: relectura de configuración conservando el PID principal.}
-        \label{fig:etapa06_reload}
-    \end{subfigure}\\[0.15cm]
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=0.92\textwidth,height=4.8cm,keepaspectratio]{images/etapa06_reinicio_compacta.jpg}
-        \caption{Supervivencia a reinicio (\texttt{reboot}): autoarranque autónomo del servicio y verificación de datos persistidos.}
-        \label{fig:etapa06_reboot}
-    \end{subfigure}
-    \caption{Mantenimiento y persistencia: recarga en caliente y comprobación experimental de supervivencia tras reinicio del host.}
-    \label{fig:etapa06_recarga_reinicio}
+    \includegraphics[width=0.88\textwidth,height=4.0cm,keepaspectratio]{images/etapa06_reinicio_compacta.jpg}
+    \caption{Supervivencia a reinicio (\texttt{reboot}): autoarranque autónomo del servicio y verificación de datos persistidos.}
+    \label{fig:etapa06_reboot}
 \end{figure}
 
 Por último, se verificó la idempotencia del script automatizado de instalación del servicio (Figura~\ref{fig:etapa06_idempotencia}). Al ejecutarse múltiples veces consecutivas sobre un sistema ya configurado, el instalador detecta los artefactos existentes, preserva los archivos de configuración y mantiene el servicio activo sin generar colisiones ni estados corruptos.
@@ -959,7 +931,7 @@ Por último, se verificó la idempotencia del script automatizado de instalació
     \label{fig:etapa06_idempotencia}
 \end{figure}
 
-Para finalizar la verificación del servicio, se evaluó la observabilidad y el confinamiento de privilegios en tiempo real (Figura~\ref{fig:etapa06_observabilidad}). Mediante \texttt{ps aux} se certificó que el proceso binario corre bajo el UID segregado del usuario \texttt{nexus} (cumpliendo con la prohibición estricta de ejecución como \texttt{root}), mientras que mediante \texttt{journalctl -u nexus.service} se comprobó la recolección centralizada y estructurada de las trazas del servicio en el subsistema journald.
+Para finalizar la verificación del servicio, se evaluó la observabilidad y el confinamiento de privilegios en tiempo real (Figura~\ref{fig:etapa06_observabilidad}). Mediante \texttt{ps -o user,pid,cmd} se certificó que el proceso binario corre bajo el UID segregado del usuario \texttt{nexus} (cumpliendo con la prohibición estricta de ejecución como \texttt{root}), mientras que mediante \texttt{journalctl -u nexus.service} se comprobó la recolección centralizada y estructurada de las trazas del servicio en el subsistema journald.
 
 \begin{figure}[H]
     \centering
@@ -984,8 +956,12 @@ nexus-client.sh create-unit --designation <NAME> --model <MODEL> --sector <SEC>
 nexus-client.sh list-operators
 nexus-client.sh create-operator --name <NAME> --clearance <LEVEL>
 nexus-client.sh list-incidents
-nexus-client.sh create-incident --unit-id <ID> --operator-id <ID> --severity <SEV> --desc <TEXT>
-nexus-client.sh update-incident --id <ID> --status <STATUS>
+nexus-client.sh get-incident <ID>
+nexus-client.sh create-incident --unit <ID> --operator <ID> --severity <SEV> --description <TEXT>
+nexus-client.sh update-incident <ID> --status <STATUS>
+nexus-client.sh list-evidence <INCIDENT_ID>
+nexus-client.sh add-evidence <INCIDENT_ID> --filename <FILE> --checksum <SHA256>
+nexus-client.sh audit
 \end{terminalbox}
 
 \subsection{Fundamentación Teórica y Preguntas de Investigación}
@@ -1011,9 +987,10 @@ fi
 \begin{pregunta}{¿Qué debería devolver el cliente si la API responde 404? ¿Y si no responde?}
     \textbf{Respuesta:}
     \begin{itemize}[leftmargin=*]
-        \item \textbf{Si la API responde 404:} El script debe imprimir en \texttt{stderr} un mensaje de error inteligible para el operador (ej. \textit{"Error: Recurso no encontrado"}), mostrar el detalle del error emitido por el JSON si existe, y salir con un código semántico de fallo en la shell (ej. \texttt{exit 2}).
-        \item \textbf{Si la API no responde (timeout o conexión rechazada):} El script debe capturar el código de salida de \texttt{curl}, emitir un mensaje indicando la indisponibilidad de la red o del servicio remoto (ej. \textit{"Error crítico: No se pudo contactar a sector-core en el puerto 8080"}), y salir con un código diferenciado (ej. \texttt{exit 1}).
+        \item \textbf{Si la API responde 404 (o cualquier error HTTP no 2xx):} El script debe imprimir en \texttt{stderr} un mensaje de error inteligible para el operador (ej. \textit{"Error: Recurso no encontrado"}), mostrar el detalle del error emitido por el JSON si existe, y salir con código semántico \texttt{exit 2}.
+        \item \textbf{Si la API no responde (timeout o conexión rechazada):} El script debe capturar el fallo de \texttt{curl}, emitir un mensaje indicando la indisponibilidad de la red o del servicio remoto, y salir con código \texttt{exit 2}, unificando errores de comunicación y respuestas HTTP de error.
     \end{itemize}
+    El esquema adoptado en el script es: \texttt{0} (éxito), \texttt{1} (error de uso), \texttt{2} (sin conexión o API con error HTTP), y \texttt{3} (fallo interno inesperado del script).
 \end{pregunta}
 
 \begin{pregunta}{¿Cómo se arma un cuerpo JSON desde Bash sin romperlo con comillas o espacios?}
@@ -1031,7 +1008,7 @@ JSON_PAYLOAD=$(jq -n \
 \begin{pregunta}{Recordando que nexusd escucha en 127.0.0.1: ¿cómo llega el cliente desde la otra máquina en esta etapa?}
     \textbf{Respuesta:} Dado que en este capítulo \texttt{nexusd} escucha estrictamente en el loopback local (\texttt{127.0.0.1:8080}) de \texttt{sector-core} y no expone el socket a la red interna, el cliente desde \texttt{field-terminal} utiliza la infraestructura SSH configurada en el Capítulo 1 mediante un \textbf{Túnel de Redirección de Puertos Local (\textit{SSH Local Port Forwarding})}:
 \begin{lstlisting}[language=bash]
-ssh -N -L 8080:127.0.0.1:8080 nexus@sector-core &
+ssh -N -L 8080:127.0.0.1:8080 kevin@192.168.56.10 &
 \end{lstlisting}
     Este comando abre un socket local en \texttt{field-terminal} en el puerto 8080 y encapsula todo el tráfico a través del túnel seguro cifrado SSH-2 hacia el puerto 8080 local de \texttt{sector-core}. De esta forma, \texttt{nexus-client.sh} realiza peticiones a \texttt{http://127.0.0.1:8080} y alcanza la API sin exponer el daemon a la red, anticipando el esquema de seguridad perimetral que culminará en el Capítulo 3 con Nginx.
 \end{pregunta}
@@ -1063,9 +1040,10 @@ En la Figura~\ref{fig:etapa07_tunel_alta}(a) se muestra la disposición operativ
 
 Para certificar la robustez del cliente Bash y el cumplimiento de las buenas prácticas de programación de scripts de sistema, se evaluaron los distintos escenarios de error y sus códigos de salida (Figura~\ref{fig:etapa07_errores_script}):
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Recurso Inexistente (Error 404):} La API responde \texttt{404 Not Found}; el cliente captura el código HTTP vía \texttt{-w "\%\{http\_code\}"}, informa el suceso en \texttt{stderr} y retorna un código de salida no nulo (Figura~\ref{fig:etapa07_errores_script}(a)).
+    \item \textbf{Recurso Inexistente (Error 404):} La API responde \texttt{404 Not Found}; el cliente captura el código HTTP vía \texttt{-w "\%\{http\_code\}"}, informa el suceso en \texttt{stderr} y retorna código de salida \texttt{2} (Figura~\ref{fig:etapa07_errores_script}(a)).
     \item \textbf{Error de Uso / Parámetros (Código 1):} Al invocar el script con argumentos insuficientes o sintaxis inválida, se imprime la guía de ayuda y se finaliza con código \texttt{1} (Figura~\ref{fig:etapa07_errores_script}(b)).
     \item \textbf{Sin Conexión de Red / Socket Caído (Código 2):} Ante la ausencia del túnel SSH o caída del daemon remoto, \texttt{curl} fracasa en Capa 4 y el cliente captura la anomalía, informando que el servidor no responde y saliendo con código \texttt{2} (Figura~\ref{fig:etapa07_errores_script}(c)).
+    \item \textbf{Fallo Interno Inesperado del Script (Código 3):} Capturado automáticamente mediante la trampa \texttt{trap ... ERR} ante fallas de ejecución no previstas dentro del propio script (no respuestas HTTP de la API, las cuales finalizan con código \texttt{2}).
 \end{enumerate}
 
 \begin{figure}[H]
@@ -1099,40 +1077,40 @@ Para certificar la robustez del cliente Bash y el cumplimiento de las buenas pr�
 % ==============================================================================
 \section{Etapa 08 — Suite de Pruebas Automatizadas con CMocka}
 
-Para asegurar la confiabilidad del daemon y su reproducibilidad en entornos de integración continua, se implementó una batería de pruebas con el framework \textbf{CMocka}.
+Para asegurar la confiabilidad del daemon y su reproducibilidad en entornos de integración continua, se implementó una batería de pruebas con el framework \textbf{CMocka}, ejecutada y orquestada integralmente a través de \textbf{CTest}.
 
 \begin{table}[H]
     \centering
     \footnotesize
-    \caption{Casos de prueba mínimos exigidos y verificados con CMocka.}
+    \caption{Mapeo de requerimientos mínimos de la cátedra hacia las suites de prueba reales ejecutadas.}
     \label{tab:pruebas_cmocka}
-    \begin{tabularx}{\textwidth}{llX}
+    \begin{tabularx}{\textwidth}{p{2.4cm} >{\raggedright\arraybackslash}p{3.6cm} X}
         \toprule
         \rowcolor{tableheader}
-        \textbf{Identificador} & \textbf{Escenario de Prueba} & \textbf{Criterio de Validación / Aserción} \\
+        \textbf{Caso Mínimo} & \textbf{Suite Real (CTest)} & \textbf{Criterio de Validación / Aserción} \\
         \midrule
-        \textbf{TEST\_01} & \textbf{Inserción Válida} & Un alta correcta de unidad/operador queda persistida en SQLite y se recupera idéntica. \\
+        \textbf{Inserción Válida} & \texttt{test\_storage}, \texttt{test\_registry} & Alta de unidad/operador persistida en SQLite y recuperada idéntica. \\
         \rowcolor{rowalt}
-        \textbf{TEST\_02} & \textbf{Datos Faltantes} & Envío de payload JSON con omisión de campos requeridos; se rechaza con 400 y nada queda escrito. \\
-        \textbf{TEST\_03} & \textbf{ID Inexistente} & Consulta de recurso no existente; responde 404 descriptivo y no genera error interno 500. \\
+        \textbf{Datos Faltantes} & \texttt{test\_api} & Envío de payload JSON incompleto; rechazo atómico 400 sin escrituras. \\
+        \textbf{ID Inexistente} & \texttt{test\_api}, \texttt{test\_incidents} & Consulta de recurso no existente; respuesta 404 descriptiva sin error 500. \\
         \rowcolor{rowalt}
-        \textbf{TEST\_04} & \textbf{Error de SQLite} & Inyección controlada de falla en SQLite (bloqueo/I-O); la app reacciona sin caída abrupta ni crash. \\
-        \textbf{TEST\_05} & \textbf{JSON Inválido} & Envío de sintaxis JSON rota o truncada; la API responde 400 Bad Request estructurado. \\
+        \textbf{Falla de SQLite} & \texttt{test\_storage} & Inyección controlada de falla en SQLite (I/O, permisos); retorno seguro sin crash. \\
+        \textbf{JSON Inválido} & \texttt{test\_api} & Sintaxis JSON rota o truncada; la API responde 400 Bad Request estructurado. \\
         \rowcolor{rowalt}
-        \textbf{TEST\_06} & \textbf{Cierre por Señal} & Emisión de \texttt{SIGTERM}; el proceso finaliza en código 0 y la base queda 100\% íntegra. \\
-        \textbf{TEST\_07} & \textbf{Health Check} & Endpoint \texttt{/health} valida simultáneamente el proceso vivo y la conectividad a la base. \\
+        \textbf{Cierre por Señal} & \texttt{test\_nexusd\_integration} & Emisión de \texttt{SIGTERM}; el proceso finaliza en código 0 con base 100\% íntegra. \\
+        \textbf{Health Check} & \texttt{test\_api}, \texttt{test\_nexusd\_integration} & Endpoint \texttt{/health} valida simultáneamente daemon vivo y conectividad a base. \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
 \subsection{Verificación Experimental con la Batería de Pruebas CMocka}
 
-La suite de pruebas fue ejecutada de forma automatizada mediante el comando unificado \texttt{make test}. En la Figura~\ref{fig:etapa08_pruebas} se observa la salida emitida por el ejecutable de pruebas basado en CMocka, certificando que los 7 casos de prueba exigidos por la cátedra fueron ejecutados con un 100\% de éxito (\texttt{[  PASSED  ] 7 test(s)}):
-\begin{itemize}[leftmargin=*]
-    \item Confirmación de persistencia y recuperación idéntica tras inserción válida.
+La suite de pruebas fue ejecutada de forma automatizada mediante el comando unificado \texttt{ctest --test-dir build} (Figura~\ref{fig:etapa08_pruebas}). La salida certifica que las 11 suites de prueba fueron superadas con un 100\% de éxito (\texttt{100\% tests passed, 0 tests failed out of 11}), incluyendo los módulos unitarios del sistema y los 12 casos de integración del servicio completo (\texttt{test\_nexusd\_integration}). Asimismo, el flujo de Integración Continua (CI) en GitHub Actions verifica de manera automatizada la compilación, pruebas unitarias, integración y análisis de código (\texttt{4/4 jobs PASSED}):
+\begin{itemize}[leftmargin=*, itemsep=0.5pt, topsep=1pt]
+    \item Confirmación de persistencia y recuperación idéntica tras inserción válida en base de datos.
     \item Rechazo atómico (\texttt{400}) ante payloads con campos requeridos omitidos.
     \item Manejo semántico (\texttt{404}) de consultas con identificadores inexistentes.
-    \item Resiliencia ante fallos forzados de la base de datos sin caída del proceso.
+    \item Resiliencia confirmada ante fallos forzados de SQLite (bloqueos y permisos) sin caída del proceso.
     \item Rechazo seguro ante JSON malformado con descripción del fallo de sintaxis.
     \item Apagado limpio y consistencia de SQLite tras emisión de señal \texttt{SIGTERM}.
     \item Chequeo sincrónico de salud en \texttt{/health} validando aplicación y base de datos simultáneamente.
@@ -1140,40 +1118,10 @@ La suite de pruebas fue ejecutada de forma automatizada mediante el comando unif
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.82\textwidth,height=3.6cm,keepaspectratio]{images/etapa08_pruebas_cmocka.jpg}
-    \caption{Ejecución exitosa de la suite completa de pruebas unitarias y de integración con CMocka (7/7 superadas).}
+    \includegraphics[width=0.82\textwidth,height=2.7cm,keepaspectratio]{images/etapa08_pruebas_cmocka.jpg}
+    \caption{Ejecución exitosa de la suite completa de pruebas unitarias y de integración con CMocka y CTest (11/11 superadas).}
     \label{fig:etapa08_pruebas}
 \end{figure}
-
-% ==============================================================================
-% PROCEDIMIENTO DE DEMOSTRACIÓN TÉCNICA
-% ==============================================================================
-\section{Guía de Demostración Práctica en Vivo}
-
-Durante la evaluación presencial del Capítulo 2, se ejecuta la secuencia de verificación técnica detallada en la Tabla~\ref{tab:demo_checklist}.
-
-\begin{table}[H]
-    \centering
-    \footnotesize
-    \caption{Checklist secuencial para la demostración técnica en vivo ante la cátedra.}
-    \label{tab:demo_checklist}
-    \begin{tabularx}{\textwidth}{llX}
-        \toprule
-        \rowcolor{tableheader}
-        \textbf{Paso} & \textbf{Dimensión a Demostrar} & \textbf{Comandos y Evidencia Esperada} \\
-        \midrule
-        \textbf{1} & \textbf{Servicio Systemd} & \texttt{systemctl status nexus.service}: Demostrar estado \texttt{active (running)}, PID asignado y ejecución estricta bajo usuario \texttt{nexus} (no \texttt{root}). \\
-        \rowcolor{rowalt}
-        \textbf{2} & \textbf{Operación de API} & Altas sucesivas de unidad y operador, creación de incidente y modificación mediante \texttt{PATCH} con códigos \texttt{201} y \texttt{200}. \\
-        \textbf{3} & \textbf{Persistencia Post-Reinicio} & Ejecutar \texttt{sudo reboot} en \texttt{sector-core}. Tras reiniciar, consultar la base de datos y demostrar que todos los registros se preservan intactos. \\
-        \rowcolor{rowalt}
-        \textbf{4} & \textbf{Cliente Remoto} & Ejecutar \texttt{nexus-client.sh list-units} desde \texttt{field-terminal} comprobando la respuesta remota. \\
-        \textbf{5} & \textbf{Señales y Observabilidad} & Detener el servicio con \texttt{systemctl stop nexus}. Mostrar en \texttt{journalctl -u nexus} el rastro del cierre limpio sin corrupción. Demostrar recarga con \texttt{systemctl reload nexus}. \\
-        \rowcolor{rowalt}
-        \textbf{6} & \textbf{Gestión de Errores} & Enviar JSON malformado con \texttt{curl} demostrando respuesta \texttt{400} y justificar semántica. \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
 
 % ==============================================================================
 % CONCLUSIONES TÉCNICAS
@@ -1182,16 +1130,16 @@ Durante la evaluación presencial del Capítulo 2, se ejecuta la secuencia de ve
 
 La implementación integral del Trabajo Práctico N$^\circ$ 2: \textbf{“Registro Central NEXUS”} consolida un salto cualitativo fundamental en la materia, transitando desde la administración pura del sistema operativo hacia la construcción de software de sistemas resiliente e integrado:
 
-\begin{enumerate}[leftmargin=*, itemsep=1.5pt]
+\begin{enumerate}[leftmargin=*, itemsep=0.5pt, topsep=1pt]
     \item \textbf{Segregación de Responsabilidades (Aplicación vs. Sistema Operativo):} Se logró delimitar con precisión qué tareas corresponden a la lógica del software (validación de datos, transaccionalidad relacional, contratos de interfaz REST) y cuáles son delegadas con solvencia al sistema operativo anfitrión (gestión del ciclo de vida, políticas de reinicio ante fallas, aislamiento de recursos mediante cgroups/namespaces y recolección centralizada de registros con journald).
     \item \textbf{Seguridad y Mínimo Privilegio en Daemons:} La ejecución de \texttt{nexusd} como servicio confinado bajo una cuenta sin privilegios (\texttt{nexus}) y protegido por directivas de endurecimiento en la unidad de systemd (\texttt{ProtectSystem}, \texttt{PrivateTmp}) neutraliza potenciales vulnerabilidades en el espacio de usuario, impidiendo accesos no autorizados al núcleo del servidor.
     \item \textbf{Integridad Transaccional y Tolerancia a Fallos:} La adopción de SQLite articulada con el manejo asíncrono seguro de señales POSIX (\texttt{SIGTERM}, \texttt{SIGHUP}) confirmó empíricamente que un servicio de sistema debe ser concebido para soportar terminaciones imprevistas o recargas en caliente sin comprometer jamás la consistencia física de la persistencia de datos.
     \item \textbf{Bases para la Exposición Perimetral:} Al mantener el demonio confinado en loopback (\texttt{127.0.0.1}) y operado vía SSH desde \texttt{field-terminal}, el sistema queda plenamente preparado para la integración del reverse proxy Nginx en el Capítulo 3.
 \end{enumerate}
 
-\vspace{0.2cm}
+\vspace{0.1cm}
 \begin{center}
-\begin{tcolorbox}[colback=uncblue!10,colframe=uncblue,width=0.88\textwidth,arc=2.5mm,center]
+\begin{tcolorbox}[colback=uncblue!10,colframe=uncblue,width=0.88\textwidth,arc=2mm,center,boxsep=1.5mm]
     \centering\bfseries\small\color{uncblue}
     REGISTRO CENTRAL NEXUS-9: SERVICIO OPERACIONAL Y PERSISTENTE\\
     \footnotesize Daemon C17, SQLite, API REST, Systemd y Observabilidad Validados al 100\%
