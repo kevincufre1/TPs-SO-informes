@@ -598,7 +598,7 @@ level = info
     \textbf{Respuesta:} La implementación de \texttt{nexusd} sigue una política estricta de \textbf{Fallo Temprano (\textit{Fail-Fast})}:
     \begin{itemize}[leftmargin=*]
         \item \textbf{Archivo Inexistente:} El programa emite un mensaje de error explícito en \texttt{stderr} indicando la ruta del archivo ausente, se niega a iniciar la ejecución y finaliza de inmediato con código de salida \texttt{1}, alertando al administrador sobre la omisión de la configuración.
-        \item \textbf{Línea, Sección o Valor Inválido:} El analizador sintáctico no tolera ambigüedades. Ante cualquier sección desconocida, clave inexistente, sintaxis rota o valor fuera de dominio (ej. un nivel de log no reconocido o un puerto inválido), el daemon imprime el error detallando el archivo y el número de línea offending, aborta el arranque y termina con código de salida \texttt{1}.
+        \item \textbf{Línea, Sección o Valor Inválido:} El analizador sintáctico no tolera ambigüedades. Ante cualquier clave desconocida, sintaxis rota o valor fuera de dominio (ej. un nivel de log no reconocido o un puerto inválido), el daemon imprime el error detallando el archivo y el número de línea offending, aborta el arranque y termina con código de salida \texttt{1}.
     \end{itemize}
 \end{pregunta}
 
@@ -762,7 +762,7 @@ Para integrarse formalmente en el ciclo de vida de la distribución anfitriona (
 
 \subsection{Definición del Servicio \texttt{nexus.service}}
 
-El archivo de unidad define el confinamiento de privilegios, las políticas de resiliencia y las variables de entorno operativas mínimas mediante la directiva \texttt{Environment=}, aislando el entorno de ejecución:
+El archivo de unidad define el confinamiento de privilegios y las políticas de resiliencia. El servicio no requiere variables de entorno: toda la configuración se lee desde \texttt{/etc/nexus/nexus.conf}, por lo que el entorno del proceso se mantiene mínimo.
 
 \begin{terminalbox}{/etc/systemd/system/nexus.service}
 [Unit]
@@ -775,7 +775,6 @@ Type=simple
 User=nexus
 Group=nexus
 WorkingDirectory=/var/lib/nexus
-Environment=NEXUS_ENV=production
 ExecStart=/usr/local/bin/nexusd -c /etc/nexus/nexus.conf
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
