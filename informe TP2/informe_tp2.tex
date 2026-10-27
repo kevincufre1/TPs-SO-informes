@@ -462,7 +462,7 @@ El daemon \texttt{nexusd} expone una interfaz de programación de aplicaciones (
         \texttt{GET} & \texttt{/health} & Verificación del estado de \texttt{nexusd} y conectividad a SQLite. & \texttt{200}, \texttt{503} \\
         \rowcolor{rowalt}
         \texttt{GET} & \texttt{/api/v1/units} & Listado completo de unidades operativas del sector. & \texttt{200} \\
-        \texttt{POST} & \texttt{/api/v1/units} & Alta de una nueva unidad operativa. & \texttt{201}, \texttt{400}, \texttt{409} \\
+        \texttt{POST} & \texttt{/api/v1/units} & Alta de una nueva unidad operativa. & \texttt{201}, \texttt{400} \\
         \rowcolor{rowalt}
         \texttt{GET} & \texttt{/api/v1/operators} & Listado de operadores registrados en el sistema. & \texttt{200} \\
         \texttt{POST} & \texttt{/api/v1/operators} & Alta de un nuevo operador en el registro. & \texttt{201}, \texttt{400} \\
@@ -494,7 +494,6 @@ El daemon \texttt{nexusd} expone una interfaz de programación de aplicaciones (
         \item \textbf{Dato Inválido / Malformado -- \texttt{400 Bad Request}:} Indica que el servidor no puede procesar la solicitud debido a un error del cliente: sintaxis JSON inválida, omisión de campos requeridos (ej. falta \texttt{designation} en una unidad), o tipos de datos incompatibles.
         \item \textbf{Recurso Inexistente -- \texttt{404 Not Found}:} El endpoint o identificador numérico solicitado no existe en la base de datos (por ejemplo, intentar modificar mediante \texttt{PATCH /api/v1/incidents/9999} un incidente que no está registrado).
         \item \textbf{Error Interno -- \texttt{500 Internal Server Error}:} Señaliza una falla imprevista en el espacio del servidor: fallo al acceder al archivo SQLite por permisos corruptos, agotamiento de descriptores de archivos, o error inesperado de I/O.
-        \item \textbf{Conflicto de Unicidad -- \texttt{409 Conflict}:} La capa de registro del daemon rechaza una unidad duplicada al intentar dar de alta una designación preexistente en el sistema.
         \item \textbf{Entidad No Procesable -- \texttt{422 Unprocessable Entity}:} El JSON es sintácticamente válido pero la transición de estado solicitada no está permitida entre los estados del ciclo de vida del incidente (error \texttt{"invalid\_transition"}).
     \end{itemize}
 \end{pregunta}
