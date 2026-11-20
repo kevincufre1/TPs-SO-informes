@@ -466,14 +466,18 @@ En la Figura~\ref{fig:e2_selinux} se demuestra la resolución técnica de la den
     \label{fig:e2_selinux}
 \end{figure}
 
-\begin{capturafaltante}{Reglas de Firewalld en Rocky Linux (field-terminal)}{E2\_I26\_02\_firewalld\_rocky.png}
-    \textbf{Archivo requerido:} \texttt{images/E2\_I26\_02\_firewalld\_rocky.png}\\
-    \textbf{Descripción:} Captura de terminal ejecutando en \texttt{field-terminal}:\\
-    \texttt{[kevin@field-terminal \textasciitilde]\$ sudo firewall-cmd --list-all}\\[0.1cm]
-    \textbf{Qué debe mostrar:} La zona activa \texttt{public}, las interfaces (\texttt{enp0s3}, \texttt{enp0s8}) y la lista de servicios donde figure únicamente \texttt{services: ssh} (demostrando la exclusión de \texttt{cockpit} y \texttt{dhcpv6-client}).\\
-    \textit{Línea para descomentar cuando se agregue la captura:}
-    % \includegraphics[width=0.88\textwidth]{images/E2_I26_02_firewalld_rocky.png}
-\end{capturafaltante}
+En la Figura~\ref{fig:e2_firewalld} se documenta la comprobación de persistencia del firewall perimetral y el confinamiento de seguridad en \texttt{field-terminal} (Rocky Linux) tras reiniciar el sistema:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Zona activa y servicios:} El comando \texttt{sudo firewall-cmd --list-all} valida que la zona por defecto \texttt{public} gobierna activamente las interfaces \texttt{enp0s3} y \texttt{enp0s8}. En el listado de servicios figura de forma exclusiva \texttt{services: ssh}, certificando que los servicios prescindibles que ensanchaban la superficie de ataque (\texttt{cockpit} en el puerto 9090 y el cliente DHCPv6) fueron removidos permanentemente.
+    \item \textbf{Confinamiento MAC persistente:} La consulta de \texttt{getenforce} ejecutada inmediatamente después corrobora que el kernel de Rocky Linux retoma la ejecución con SELinux en modo \textbf{Enforcing}, garantizando que ningún servicio o script pueda exceder los vectores de acceso permitidos por la política de seguridad.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/E2_I26_02_firewalld_tras_reinicio.png}
+    \caption{Estado persistente de \texttt{firewalld} en \texttt{field-terminal} tras reinicio: zona \texttt{public} con único servicio SSH y SELinux en modo \texttt{Enforcing}.}
+    \label{fig:e2_firewalld}
+\end{figure}
 
 % ==============================================================================
 % SECCIÓN 3: ETAPA 03 — EVIDENCIAS Y NOTIFICACIONES
@@ -813,16 +817,45 @@ En la Figura~\ref{fig:e7_nexusctl} se muestra la ejecución de \texttt{nexusctl}
     \label{fig:e7_nexusctl}
 \end{figure}
 
-\begin{capturafaltante}{Operaciones de Incidentes y Manejo de Errores con nexusctl}{E7\_I72\_02\_incidents\_crud\_rocky.png}
-    \textbf{Archivo requerido:} \texttt{images/E7\_I72\_02\_incidents\_crud\_rocky.png}\\
-    \textbf{Descripción:} Captura de terminal en \texttt{field-terminal} demostrando:\\
-    \texttt{\$ nexusctl --server https://sector-core incidents create --unit 1 --operator 1 --severity high --description "Alerta de prueba"}\\
-    \texttt{\$ nexusctl --server https://sector-core incidents close <ID>}\\
-    \texttt{\$ nexusctl --server https://sector-core:9999 health; echo "Codigo: \$?"}\\[0.1cm]
-    \textbf{Qué debe mostrar:} Alta y cierre exitoso de incidentes, y la emisión de un código de salida distinto de 0 ante conexión fallida (código 3).\\
-    \textit{Línea para descomentar cuando se agregue la captura:}
-    % \includegraphics[width=0.88\textwidth]{images/E7_I72_02_incidents_crud_rocky.png}
-\end{capturafaltante}
+En la Figura~\ref{fig:e7_incidents_create} y Figura~\ref{fig:e7_incidents_val} se documenta exhaustivamente el subcomando de creación de incidentes (\texttt{nexusctl incidents create}) operando desde \texttt{field-terminal}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Creación legítima en el sector (Figura~\ref{fig:e7_incidents_create}):} El operador invoca el comando con todos los argumentos mandatorios requeridos por la especificación: \texttt{--unit 6}, \texttt{--operator 1}, \texttt{--severity critical} y una descripción representativa. El cliente efectúa el \texttt{POST /api/v1/incidents} vía HTTPS validado con la CA, recibiendo la confirmación del servidor con el identificador asignado (\texttt{ID: 11}) y finalizando con código de retorno exitoso \texttt{0}.
+    \item \textbf{Validación defensiva en el cliente (Figura~\ref{fig:e7_incidents_val}):} Si se omite alguno de los parámetros mandatorios (por ejemplo ejecutando únicamente con \texttt{--unit 6}), el cliente valida el formato antes de emitir ninguna conexión de red. Emite un mensaje de error descriptivo con la sintaxis requerida y retorna de forma inequívoca con \texttt{código 1} (\texttt{NEXUSCTL\_EXIT\_USAGE}), evitando generar carga superflua sobre la API.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E7_I74_01_crear_incidente.png}
+    \caption{Creación confirmada de incidente crítico mediante \texttt{nexusctl} reportando ID 11.}
+    \label{fig:e7_incidents_create}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E7_I74_02_crear_incidente_validacion.png}
+    \caption{Validación previa en cliente: aborto inmediato sin conexión ante argumentos faltantes (código 1).}
+    \label{fig:e7_incidents_val}
+\end{figure}
+
+En la Figura~\ref{fig:e7_incidents_close} y Figura~\ref{fig:e7_incidents_err} se comprueba el ciclo de cierre de incidentes (\texttt{nexusctl incidents close}) y el tratamiento diferenciado de códigos de error:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Cierre exitoso mediante PATCH (Figura~\ref{fig:e7_incidents_close}):} Al ejecutar \texttt{nexusctl incidents close 12}, el cliente emite la petición \texttt{PATCH} modificando el estado del incidente a \texttt{closed} y devolviendo código \texttt{0}. Inmediatamente después, se realiza una consulta de verificación vía \texttt{--json incidents list} exportada a archivo; un script en Python inspecciona el JSON confirmando que el incidente 12 figura con \texttt{"status": "closed"} y su respectiva marca temporal de actualización (\texttt{updated\_at}).
+    \item \textbf{Gestión de incidentes inexistentes (Figura~\ref{fig:e7_incidents_err}):} Al intentar cerrar un identificador inexistente (\texttt{ID 99999}), la API retorna HTTP \texttt{404 Not Found}. El cliente interpreta la respuesta y emite el mensaje \texttt{"incidente 99999 no encontrado"}, saliendo con \texttt{código 2} (\texttt{NEXUSCTL\_EXIT\_API\_ERROR}), distinguiéndolo certeramente de un error de sintaxis (1), transporte (3) o certificados TLS (4).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E7_I75_01_cerrar_incidente.png}
+    \caption{Cierre de incidente legítimo mediante PATCH y corroboración de estado \texttt{closed} en JSON.}
+    \label{fig:e7_incidents_close}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E7_I75_02_cerrar_incidente_inexistente.png}
+    \caption{Tratamiento riguroso de error de API: reporte de incidente no encontrado con código 2.}
+    \label{fig:e7_incidents_err}
+\end{figure}
 
 % ==============================================================================
 % SECCIÓN 8: ETAPA 08 — DESPLIEGUE AUTOMATIZADO Y ROLLBACK
