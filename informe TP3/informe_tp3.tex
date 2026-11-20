@@ -45,6 +45,7 @@
 \usepackage{multicol}
 
 % --- Hipervínculos ---
+\usepackage{xurl}
 \usepackage{hyperref}
 
 % --- Definición de Paleta de Colores Institucional UNC / FCEFyN ---
@@ -220,7 +221,7 @@
     \end{figure}
     
     \vspace{0.1cm}
-    {\large\scshape\bfseries UNIVERSIDAD NACIONAL DE CÓRDOBA}\\[0.1cm]
+    {\large\bfseries UNIVERSIDAD NACIONAL DE CÓRDOBA}\\[0.1cm]
     {\large\scshape FACULTAD DE CIENCIAS EXACTAS, FÍSICAS Y NATURALES}\\[0.15cm]
     {\normalsize\scshape DEPARTAMENTO DE COMPUTACIÓN}\\[0.35cm]
     
@@ -288,7 +289,7 @@ La aprobación técnica del capítulo exige el cumplimiento simultáneo y verifi
     \footnotesize
     \caption{Matriz de criterios de aceptación y ponderación de la rúbrica de evaluación.}
     \label{tab:criterios_evaluacion}
-    \begin{tabularx}{\textwidth}{lp{6.8cm}cp{4.5cm}}
+    \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.2cm}Xc>{\raggedright\arraybackslash}p{4.0cm}}
         \toprule
         \rowcolor{tableheader}
         \textbf{Dimensión} & \textbf{Requisito Técnico Operativo Exigido} & \textbf{Peso} & \textbf{Mecanismo de Validación} \\
@@ -299,7 +300,7 @@ La aprobación técnica del capítulo exige el cumplimiento simultáneo y verifi
         \textbf{SFTP, Evidencias y Auditoría} & Usuario \texttt{nexus\_evidence} sin shell y enjaulado en chroot; SHA-256 en origen; registro trazable en auditoría; Postfix local. & 10\% & Script \texttt{upload-evidence.sh}, log de auditoría y buzón operativo. \\
         \rowcolor{rowalt}
         \textbf{Backups y Restauración} & Copia consistente de SQLite, configs y evidencias; manifest verificable en frío; recuperación real ante borrado; rechazo de copia dañada. & 15\% & Scripts \texttt{backup.sh}, \texttt{restore.sh} y prueba de pérdida real provocada. \\
-        \textbf{Resiliencia y Límites Systemd} & Reinicio ante \texttt{kill -9} en 2s; límites de memoria (MemoryMax=96M), CPU y tareas; confinamiento de fs; rotación SIGHUP en logrotate. & 15\% & \texttt{kill -9}, inspección de cgroup y \texttt{logrotate -f} sin perder PID. \\
+        \textbf{Resiliencia y Límites Systemd} & Reinicio ante \texttt{kill -9} con espera configurada de 2s; límites de memoria (MemoryMax=96M), CPU y tareas; confinamiento de fs; rotación SIGHUP en logrotate. & 15\% & \texttt{kill -9}, inspección de cgroup y \texttt{logrotate -f} sin perder PID. \\
         \rowcolor{rowalt}
         \textbf{Automatización y Diagnóstico} & Script de salud \texttt{health-check.sh} multipunto; paquete \texttt{collect-diagnostics.sh} sanitizado sin claves privadas ni secretos. & 10\% & Ejecución con códigos de salida semánticos y tests de regresión. \\
         \textbf{Cliente en C (nexusctl)} & Cliente compilado en C17 con \texttt{libcurl}; opera contra HTTPS; maneja códigos de retorno estrictos (0 a 5); sin URLs hardcodeadas. & 10\% & Ejecución desde \texttt{field-terminal} para health, units, incidents. \\
@@ -314,7 +315,7 @@ La aprobación técnica del capítulo exige el cumplimiento simultáneo y verifi
 % ==============================================================================
 \section{Etapa 01 — Publicación Segura con Nginx, Reverse Proxy y TLS}
 
-En el diseño original, \texttt{nexusd} escuchaba directamente en un socket TCP sin cifrado. Para exponer la plataforma cumpliendo con los estándares de producción, se implementó una arquitectura de proxy inverso (*reverse proxy*) mediante \textbf{Nginx}, convirtiéndolo en el único punto de entrada público del nodo \texttt{sector-core}.
+En el diseño original, \texttt{nexusd} escuchaba directamente en un socket TCP sin cifrado. Para exponer la plataforma cumpliendo con los estándares de producción, se implementó una arquitectura de proxy inverso (\textit{reverse proxy}) mediante \textbf{Nginx}, convirtiéndolo en el único punto de entrada público del nodo \texttt{sector-core}.
 
 \begin{figure}[H]
     \centering
@@ -349,12 +350,12 @@ La configuración versionada en \texttt{config/nginx/nexus.conf} establece las d
 
 \subsection{Infraestructura de Clave Pública (PKI) y Certificados TLS}
 
-Para garantizar una comunicación segura sin requerir banderas inseguras (\texttt{--insecure} o \texttt{-k}), se implementó una Autoridad Certificante interna para el laboratorio mediante el script automatizado \texttt{scripts/pki/generate-pki.sh}:
+Para garantizar una comunicación segura sin requerir banderas inseguras (\texttt{--insecure} o \texttt{-k}), se implementó una Autoridad Certificante interna para el laboratorio mediante el script automatizado \path{scripts/pki/generate-pki.sh}:
 \begin{enumerate}[leftmargin=*]
     \item \textbf{Autoridad Certificante Raíz (CA):} Generación de una clave asimétrica RSA (\texttt{ca.key}) y un certificado autofirmado con vigencia decenal (\texttt{ca.crt}), sujeto: \texttt{CN=NEXUS-9 Root CA, O=NEXUS-9 Laboratorio, C=AR}.
     \item \textbf{Certificado del Servidor \texttt{sector-core}:} Generación de clave privada local (\texttt{sector-core.key}) y CSR firmado por la CA del laboratorio (\texttt{sector-core.crt}). Se incluyó explícitamente la extensión \textbf{Subject Alternative Name (SAN)} conteniendo:
     \texttt{DNS:sector-core, IP Address:192.168.56.10}.
-    \item \textbf{Confianza en el Cliente (\texttt{field-terminal}):} Se distribuyó e instaló el certificado público de la CA (\texttt{ca.crt}) en el almacén de anclas de confianza de Rocky Linux (\texttt{/etc/pki/ca-trust/source/anchors/}) y se actualizó con \texttt{update-ca-trust}.
+    \item \textbf{Confianza en el Cliente (\texttt{field-terminal}):} Se distribuyó e instaló el certificado público de la CA (\texttt{ca.crt}) en el almacén de anclas de confianza de Rocky Linux (\path{/etc/pki/ca-trust/source/anchors/}) y se actualizó con \texttt{update-ca-trust}.
     \item \textbf{Protección Criptográfica y Git:} Ninguna clave privada (\texttt{*.key}) se incluye en el control de versiones. Se aseguraron permisos restrictivos: directorios de PKI en modo \texttt{0700}, claves privadas en \texttt{0600} (dueño \texttt{root:root}) y certificados públicos en \texttt{0644}.
 \end{enumerate}
 
@@ -365,9 +366,9 @@ Para garantizar una comunicación segura sin requerir banderas inseguras (\textt
 \end{pregunta}
 
 \begin{pregunta}{¿Qué significa que un certificado sea "válido" y qué papel cumple una CA?}
-    \textbf{Respuesta:} La validez de un certificado es una decisión tomada por el cliente criptográfico (ej. \texttt{curl}, OpenSSL) evaluando tres factores: 1) \textbf{Cadena de confianza:} El certificado fue emitido y firmado digitalmente por una Autoridad Certificante reconocida en el almacén local del sistema. 2) \textbf{Identidad:} El nombre del host o IP consultado coincide estrictamente con el Common Name (CN) o con las entradas de \textit{Subject Alternative Name} (SAN). 3) \textbf{Vigencia:} La fecha de conexión está dentro del rango \texttt{notBefore} y \texttt{notAfter}.
+    \textbf{Respuesta:} La validez de un certificado es una decisión tomada por el cliente criptográfico (ej. \texttt{curl}, OpenSSL) evaluando tres factores: 1) \textbf{Cadena de confianza:} El certificado fue emitido y firmado digitalmente por una Autoridad Certificante reconocida en el almacén local del sistema. 2) \textbf{Identidad:} El nombre del host o IP consultado debe coincidir con las entradas apropiadas de \textit{Subject Alternative Name} (SAN). 3) \textbf{Vigencia:} La fecha de conexión está dentro del rango \texttt{notBefore} y \texttt{notAfter}.
     
-    La CA actúa como un tercero de confianza (*trust anchor*). Instalar su certificado raíz en el cliente le enseña a confiar en todas las firmas generadas por dicha entidad sin necesidad de distribuir ni alterar el cliente ante renovaciones del certificado de servidor.
+    La CA actúa como una autoridad de confianza (\textit{trust anchor}). Instalar su certificado raíz en el cliente le enseña a confiar en todas las firmas generadas por dicha entidad sin necesidad de distribuir ni alterar el cliente ante renovaciones del certificado de servidor.
 \end{pregunta}
 
 \begin{pregunta}{¿Qué ocurre exactamente cuando se usa --insecure (-k)?}
@@ -375,7 +376,7 @@ Para garantizar una comunicación segura sin requerir banderas inseguras (\textt
 \end{pregunta}
 
 \begin{pregunta}{Si Nginx termina el TLS, ¿qué viaja entre Nginx y la aplicación? ¿Es un problema aquí?}
-    \textbf{Respuesta:} Entre Nginx y \texttt{nexusd} el tráfico viaja en texto claro (HTTP). En este escenario no constituye un riesgo de seguridad porque ambos procesos residen en la misma máquina virtual y se comunican a través de la interfaz de loopback (\texttt{127.0.0.1}). Los paquetes nunca cruzan el cable de red física ni interfaces externas; permanecen confinados en los buffers de memoria del kernel. Sin embargo, en una arquitectura distribuida (donde Nginx y el backend estuviesen en hosts separados), dicho enlace sí requeriría TLS mutuo (mTLS) o una red overlay cifrada.
+    \textbf{Respuesta:} Entre Nginx y \texttt{nexusd} el tráfico viaja en texto claro (HTTP). En este escenario se evita exponer ese tramo a la red externa porque ambos procesos residen en la misma máquina virtual y se comunican a través de la interfaz de loopback (\texttt{127.0.0.1}). Los paquetes nunca cruzan el cable de red física ni interfaces externas; permanecen confinados en los buffers de memoria del kernel. Sin embargo, en una arquitectura distribuida (donde Nginx y el backend estuviesen en hosts separados), dicho enlace sí requeriría TLS mutuo (mTLS) o una red overlay cifrada.
 \end{pregunta}
 
 \begin{pregunta}{¿Qué diferencia hay entre el certificado del servidor y la clave privada que lo acompaña?}
@@ -485,7 +486,7 @@ En la Figura~\ref{fig:e2_selinux} se demuestra la resolución técnica de la den
 En la Figura~\ref{fig:e2_firewalld} se documenta la comprobación de persistencia del firewall perimetral y el confinamiento de seguridad en \texttt{field-terminal} (Rocky Linux) tras reiniciar el sistema:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Zona activa y servicios:} El comando \texttt{sudo firewall-cmd --list-all} valida que la zona por defecto \texttt{public} gobierna activamente las interfaces \texttt{enp0s3} y \texttt{enp0s8}. En el listado de servicios figura de forma exclusiva \texttt{services: ssh}, certificando que los servicios prescindibles que ensanchaban la superficie de ataque (\texttt{cockpit} en el puerto 9090 y el cliente DHCPv6) fueron removidos permanentemente.
-    \item \textbf{Confinamiento MAC persistente:} La consulta de \texttt{getenforce} ejecutada inmediatamente después corrobora que el kernel de Rocky Linux retoma la ejecución con SELinux en modo \textbf{Enforcing}, garantizando que ningún servicio o script pueda exceder los vectores de acceso permitidos por la política de seguridad.
+    \item \textbf{Confinamiento MAC persistente:} La consulta de \texttt{getenforce} ejecutada inmediatamente después corrobora que el kernel de Rocky Linux retoma la ejecución con SELinux en modo \textbf{Enforcing}, aplicando las restricciones de la política a los dominios confinados; este modo no demuestra por sí solo que todos los procesos tengan una política restrictiva.
 \end{itemize}
 
 \begin{figure}[H]
@@ -511,12 +512,12 @@ Se configuró una cuenta de servicio dedicada con mínimos privilegios:
     \begin{terminalbox}{sshd_config fragment}
 Match User nexus_evidence
     ChrootDirectory /srv/nexus-sftp
-    ForceCommand internal-sftp
+    ForceCommand internal-sftp -d /incoming -u 027
     AllowTcpForwarding no
     X11Forwarding no
     PasswordAuthentication no
     \end{terminalbox}
-    Para satisfacer los estrictos requerimientos de seguridad de OpenSSH, el directorio raíz del chroot (\texttt{/srv/nexus-sftp}) es propiedad exclusiva de \texttt{root:root} con permisos \texttt{0755} (no escribible por el usuario, evitando fugas de la jaula). La recepción de archivos se realiza sobre el subdirectorio escribible \texttt{/srv/nexus-sftp/incoming}, el cual está enlazado mediante un \textbf{montaje bind} (\textit{bind mount}) al directorio de almacenamiento de evidencias (\texttt{/var/lib/nexus/evidence/incoming}), asignado a \texttt{nexus\_evidence:nexus} con permisos restrictivos \texttt{0770}, permitiendo que las cargas se depositen directamente en la ruta de trabajo sin comprometer la seguridad del chroot.
+    Para satisfacer los estrictos requerimientos de seguridad de OpenSSH, el directorio raíz del chroot (\texttt{/srv/nexus-sftp}) es propiedad exclusiva de \texttt{root:root} con permisos \texttt{0755} (no escribible por el usuario, evitando fugas de la jaula). La recepción de archivos se realiza sobre el subdirectorio escribible \texttt{/srv/nexus-sftp/incoming}, el cual está enlazado mediante un \textbf{montaje bind} (\textit{bind mount}) al directorio de almacenamiento de evidencias (\path{/var/lib/nexus/evidence/incoming}), asignado a \texttt{nexus\_evidence:nexus} con permisos \texttt{2750}, con setgid para heredar el grupo nexus, permitiendo que las cargas se depositen directamente en la ruta de trabajo sin comprometer la seguridad del chroot.
 \end{itemize}
 
 \subsection{Flujo Transaccional del Script \texttt{upload-evidence.sh}}
@@ -532,7 +533,7 @@ La operación completa se orquesta desde \texttt{field-terminal} mediante el scr
 
 \subsection{Servicio de Notificaciones Operativas con Postfix}
 
-Se configuró un agente de transporte de correo (\textbf{Postfix}) configurado estrictamente para \textbf{entrega local} en \texttt{sector-core}. Cuando \texttt{nexusd} registra un incidente con nivel de severidad \texttt{critical}, el módulo de notificaciones despacha de forma asíncrona una alerta dirigida al buzón operativo local: \texttt{nexus-ops@sector-core}. La entrega y trazabilidad quedan registradas en el journal y en la tabla de auditoría.
+Se configuró un agente de transporte de correo (\textbf{Postfix}) configurado estrictamente para \textbf{entrega local} en \texttt{sector-core}. Cuando \texttt{nexusd} registra un incidente con nivel de severidad \texttt{critical}, el módulo de notificaciones invoca el mecanismo local de envío para una alerta dirigida al buzón operativo local: \texttt{nexus-ops@sector-core}. La aceptación del envío se registra en el journal y la auditoría; la entrega efectiva al buzón se comprobó por separado en el ensayo.
 
 \subsection{Respuestas a Preguntas de Investigación}
 
@@ -574,7 +575,7 @@ En la Figura~\ref{fig:e3_notificacion} se verifica la creación de un incidente 
 
 En la Figura~\ref{fig:e3_ssh_rechazo} y Figura~\ref{fig:e3_sftp_chroot} se documentan las pruebas de seguridad negativas aplicadas a la cuenta \texttt{nexus\_evidence} desde \texttt{field-terminal}:
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Rechazo de Shell y Comandos Remotos (Figura~\ref{fig:e3_ssh_rechazo}):} El intento de apertura de sesión interactiva SSH (\texttt{ssh -i \textasciitilde/.ssh/nexus\_evidence nexus\_evidence@sector-core}) o la ejecución remota de binarios (\texttt{... nexus\_evidence@sector-core id}) es abortado inmediatamente por el subsistema OpenSSH emitiendo el mensaje \texttt{"This service allows sftp connections only."} y cerrando la conexión.
+    \item \textbf{Rechazo de Shell y Comandos Remotos (Figura~\ref{fig:e3_ssh_rechazo}):} El intento de apertura de sesión interactiva SSH (\texttt{ssh -i} \path{~/.ssh/nexus_evidence} \nolinkurl{nexus_evidence@sector-core}) o la ejecución remota de binarios (\texttt{ssh} con el comando remoto \texttt{id}) es abortado inmediatamente por el subsistema OpenSSH emitiendo el mensaje \texttt{"This service allows sftp connections only."} y cerrando la conexión.
     \item \textbf{Aislamiento Chroot (Figura~\ref{fig:e3_sftp_chroot}):} Al iniciar sesión SFTP legítima, el entorno queda confinado en su raíz virtual: \texttt{ls /} exhibe de forma exclusiva la carpeta de subida autorizada (\texttt{/incoming}), intentos de navegación transversal (\texttt{cd /etc}) devuelven \texttt{No such file or directory}, y cualquier tentativa de escribir fuera de la jaula (\texttt{put ... /hostname}) es rechazada con \texttt{Permission denied}.
 \end{itemize}
 
@@ -686,7 +687,7 @@ La información operativa (incidentes, unidades, evidencias y auditoría) consti
 
 \subsection{Generación de Copias Consistentes (\texttt{backup.sh})}
 
-El script \texttt{scripts/backup.sh} genera una copia estructurada en \texttt{/var/backups/nexus/nexus-backup-AAAAMMDD-HHMMSS/}:
+El script \texttt{scripts/backup.sh} genera una copia estructurada en \path{/var/backups/nexus/nexus-backup-AAAAMMDD-HHMMSS/}:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Consistencia de SQLite:} Se utiliza el comando de respaldo en caliente de la base (\texttt{sqlite3 .backup}) o copia transaccional sin transacciones incompletas, evitando corrupciones derivadas de los archivos auxiliares de WAL (\texttt{.db-wal} y \texttt{.db-shm}).
     \item \textbf{Copia de configuración y evidencias:} Se respaldan \texttt{nexus.conf} y el árbol íntegro de \texttt{evidence/}.
@@ -696,7 +697,7 @@ El script \texttt{scripts/backup.sh} genera una copia estructurada en \texttt{/v
 
 \subsection{Automatización con Temporizadores Systemd y Retención}
 
-Se crearon las unidades \texttt{nexus-backup.service} (\texttt{Type=oneshot}) y \texttt{nexus-backup.timer}:
+Se crearon las unidades \texttt{nexus-backup.service} (\texttt{Type=oneshot}) y \nolinkurl{nexus-backup.timer}:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Temporización estricta:} \texttt{OnCalendar=*-*-* 03:00:00 UTC}, programando la ejecución en horas de baja actividad.
     \item \textbf{Persistencia (\texttt{Persistent=true}):} Si la máquina permaneció apagada durante el horario fijado, systemd dispara el respaldo inmediatamente al siguiente encendido.
@@ -759,7 +760,7 @@ En la Figura~\ref{fig:e5_restauracion} se documenta la prueba de recuperación a
     \label{fig:e5_restauracion}
 \end{figure}
 
-En la Figura~\ref{fig:e5_timer} se corrobora el aprovisionamiento y funcionamiento del temporizador automatizado \texttt{nexus-backup.timer}:
+En la Figura~\ref{fig:e5_timer} se corrobora el aprovisionamiento y funcionamiento del temporizador automatizado \nolinkurl{nexus-backup.timer}:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Programación temporal y estado activo:} La unidad se encuentra en estado \texttt{enabled} y \texttt{active}. El comando \texttt{systemctl list-timers} confirma la correspondencia con \texttt{nexus-backup.service}, reportando la próxima ejecución programada a las 03:00:00 UTC con el retraso aleatorio configurado.
     \item \textbf{Directivas de resiliencia:} La inspección mediante \texttt{systemctl show} certifica la persistencia operativa ante eventuales apagados de la máquina virtual (\texttt{Persistent=yes}) y la aplicación del mecanismo de dispersión de carga (\texttt{RandomizedDelayUSec=15min}).
@@ -768,7 +769,7 @@ En la Figura~\ref{fig:e5_timer} se corrobora el aprovisionamiento y funcionamien
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.92\textwidth]{images/E5_I54_01_backup_timer.png}
-    \caption{Estado activo y programación del temporizador \texttt{nexus-backup.timer} con persistencia y retraso aleatorio.}
+    \caption{Estado activo y programación del temporizador \nolinkurl{nexus-backup.timer} con persistencia y retraso aleatorio.}
     \label{fig:e5_timer}
 \end{figure}
 
@@ -793,16 +794,16 @@ El script \texttt{scripts/health-check.sh} evalúa de punta a punta la pila de s
 
 \subsection{Recolector de Diagnósticos Forenses (\texttt{collect-diagnostics.sh})}
 
-Cuando ocurre una contingencia, el estado volátil del sistema cambia rápidamente. El script \texttt{collect-diagnostics.sh} empaqueta una fotografía estructurada del sistema en un archivo comprimido \texttt{nexus-diagnostics-AAAAMMDD-HHMMSS.tar.gz}:
+Cuando ocurre una contingencia, el estado volátil cambia rápidamente. El recolector empaqueta una fotografía estructurada del sistema. El archivo se identifica por fecha UTC: \nolinkurl{nexus-diagnostics-AAAAMMDD-HHMMSS.tar.gz}. Incluye:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Secciones estructuradas:} Recopila información del sistema operativo (\texttt{01-system-info}), estado de unidades systemd (\texttt{02-services}), procesos activos (\texttt{03-processes}, registrando estado y porcentaje promedio de CPU reportado por \texttt{ps}), interfaces y tablas de red (\texttt{04-network}), reglas de firewall (\texttt{05-firewall}), estado de SELinux (\texttt{06-selinux}, capturando denegaciones AVC dentro de la ventana reciente de auditoría), almacenamiento (\texttt{07-storage}), resultado del health-check y últimos registros de log.
-    \item \textbf{Sanitización de secretos y seguridad:} Aplica un filtro de sanitización mediante expresiones regulares para detectar patrones conocidos de claves privadas (ej. \texttt{BEGIN RSA PRIVATE KEY}), contraseñas y tokens sensibles, sustituyendo las coincidencias por \texttt{[REDACTED]}. Si bien esta técnica mitiga la filtración involuntaria de credenciales estándar antes de compartir diagnósticos externamente, no ofrece una garantía matemática absoluta frente a formatos no convencionales o secretos embebidos en texto plano arbitrario, requiriendo verificación humana prudente. El archivo final se genera con permisos restrictivos \texttt{0600}.
+    \item \textbf{Sanitización de secretos y seguridad:} Aplica un filtro de sanitización mediante expresiones regulares para detectar patrones conocidos de claves privadas (ej. \texttt{BEGIN RSA PRIVATE KEY}), contraseñas y tokens sensibles, reemplazando el contenido íntegro del archivo afectado por un aviso \texttt{[REDACTED]}; no se limita a sustituir las coincidencias aisladas. Si bien esta técnica mitiga la filtración involuntaria de credenciales estándar antes de compartir diagnósticos externamente, no ofrece una garantía matemática absoluta frente a formatos no convencionales o secretos embebidos en texto plano arbitrario, requiriendo verificación humana prudente. El archivo final se genera con permisos restrictivos \texttt{0600}.
 \end{itemize}
 
 \subsection{Respuestas a Preguntas de Investigación}
 
 \begin{pregunta}{¿Qué diferencia hay entre "el proceso está corriendo" y "el servicio está sano"?}
-    \textbf{Respuesta:} Que un proceso exista en la tabla de procesos del kernel (con PID asignado y estado \texttt{R} o \texttt{S}) únicamente indica que no ha terminado. Sin embargo, el servicio puede estar completamente inutilizable: atrapado en un interbloqueo (*deadlock*), con la base de datos desconectada o bloqueada, con sus descriptores de socket agotados o sin atender conexiones HTTP entrantes. "Estar sano" implica que el servicio es capaz de responder satisfactoriamente a las peticiones reales del cliente respetando su contrato de interfaz (semántica de *readiness*).
+    \textbf{Respuesta:} Que un proceso exista en la tabla de procesos del kernel (con PID asignado y estado \texttt{R} o \texttt{S}) únicamente indica que no ha terminado. Sin embargo, el servicio puede estar completamente inutilizable: atrapado en un interbloqueo (\textit{deadlock}), con la base de datos desconectada o bloqueada, con sus descriptores de socket agotados o sin atender conexiones HTTP entrantes. "Estar sano" implica que el servicio es capaz de responder satisfactoriamente a las peticiones reales del cliente respetando su contrato de interfaz (semántica de *readiness*).
 \end{pregunta}
 
 \begin{pregunta}{¿Qué debería devolver el health check si la aplicación responde pero el disco está casi lleno?}
@@ -818,7 +819,7 @@ Cuando ocurre una contingencia, el estado volátil del sistema cambia rápidamen
 \end{pregunta}
 
 \begin{pregunta}{¿Para qué sirve recolectar el estado del sistema en el momento de la falla en lugar de después?}
-    \textbf{Respuesta:} Porque la información forense más crítica es altamente volátil: tablas de conexiones TCP activas (\texttt{ss}), procesos en estado zombie o bloqueados en D (\textit{uninterruptible sleep}), buffers de memoria del kernel, denegaciones recientes en auditd y descriptores abiertos. Si se espera a reiniciar el servicio o la máquina, o si se permite que pasen minutos, el sistema operativo limpia esos recursos volátiles y la causa raíz (*root cause*) del problema se vuelve irrecuperable.
+    \textbf{Respuesta:} Porque la información forense más crítica es altamente volátil: tablas de conexiones TCP activas (\texttt{ss}), procesos en estado zombie o bloqueados en D (\textit{uninterruptible sleep}), buffers de memoria del kernel, denegaciones recientes en auditd y descriptores abiertos. Si se espera a reiniciar el servicio o la máquina, o si se permite que pasen minutos, el sistema operativo limpia esos recursos volátiles y la causa raíz (\textit{root cause}) del problema se vuelve irrecuperable.
 \end{pregunta}
 
 \subsection{Evidencia Experimental de la Etapa 06}
@@ -832,7 +833,7 @@ En la Figura~\ref{fig:e6_health} se constata la ejecución del monitor de salud 
     \label{fig:e6_health}
 \end{figure}
 
-En la Figura~\ref{fig:e6_diagnostics} se visualiza la generación del paquete de diagnósticos con marca de tiempo UTC, permisos \texttt{0600} y el desglose de sus componentes estructurados e inmutables mediante \texttt{tar -tzf}.
+En la Figura~\ref{fig:e6_diagnostics} se visualiza la generación del paquete de diagnósticos con marca de tiempo UTC, permisos \texttt{0600} y el desglose de sus componentes estructurados mediante \texttt{tar -tzf}.
 
 \begin{figure}[H]
     \centering
@@ -850,7 +851,7 @@ Para la operación profesional de campo en \texttt{field-terminal}, se reemplaz�
 
 \subsection{Arquitectura y Precedencia de Configuración}
 
-Siguiendo las mejores prácticas de seguridad operativa, \textbf{ninguna dirección de servidor se encuentra codificada de forma rígida (*hardcoded*) en el código fuente}. El cliente resuelve la URL destino mediante una cascada estricta:
+Siguiendo las mejores prácticas de seguridad operativa, \textbf{ninguna dirección de servidor se encuentra codificada de forma rígida (\textit{hardcoded}) en el código fuente}. El cliente resuelve la URL destino mediante una cascada estricta:
 \begin{enumerate}[leftmargin=*]
     \item Parámetro explícito en línea de comandos: \texttt{--server <URL>} o \texttt{-s <URL>}.
     \item Variable de entorno principal: \texttt{\$NEXUS\_API\_URL}.
@@ -889,11 +890,11 @@ Para permitir su integración en scripts de orquestación, \texttt{nexusctl} dis
 \subsection{Respuestas a Preguntas de Investigación}
 
 \begin{pregunta}{¿Qué le aporta libcurl al programa que tendrían que escribir a mano si no existiera?}
-    \textbf{Respuesta:} \texttt{libcurl} encapsula y resuelve la complejidad integral de la pila de red cliente: resolución de nombres DNS, gestión y multiplexación de sockets TCP, negociación del protocolo TLS/SSL con verificación de certificados X.509 y cadenas de confianza, seguimiento de redirecciones HTTP (301/302), formateo y parsing de cabeceras, soporte de transferencias fragmentadas (*chunked transfer*) y control granular de tiempos de espera (\textit{timeouts}). Implementar esta funcionalidad a mano requeriría programar directamente con sockets POSIX y enlazar de forma artesanal con la API criptográfica de bajo nivel de OpenSSL.
+    \textbf{Respuesta:} \texttt{libcurl} encapsula y resuelve la complejidad integral de la pila de red cliente: resolución de nombres DNS, gestión y multiplexación de sockets TCP, negociación del protocolo TLS/SSL con verificación de certificados X.509 y cadenas de confianza, seguimiento de redirecciones HTTP (301/302), formateo y parsing de cabeceras, soporte de transferencias fragmentadas (\textit{chunked transfer}) y control granular de tiempos de espera (\textit{timeouts}). Implementar esta funcionalidad a mano requeriría programar directamente con sockets POSIX y enlazar de forma artesanal con la API criptográfica de bajo nivel de OpenSSL.
 \end{pregunta}
 
 \begin{pregunta}{¿Cómo sabe libcurl en qué certificados confiar?}
-    \textbf{Respuesta:} \texttt{libcurl} consulta por defecto el almacén consolidado de certificados de confianza del sistema operativo (en Rocky Linux \texttt{/etc/pki/tls/certs/ca-bundle.crt}), donde se integró la CA del distrito mediante \texttt{update-ca-trust}. Alternativamente, puede instruirse a la biblioteca para utilizar un archivo de certificados específico en tiempo de ejecución configurando la opción \texttt{CURLOPT\_CAINFO} o el directorio con \texttt{CURLOPT\_CAPATH}.
+    \textbf{Respuesta:} \texttt{libcurl} consulta por defecto el almacén consolidado de certificados de confianza del sistema operativo (en Rocky Linux \path{/etc/pki/tls/certs/ca-bundle.crt}), donde se integró la CA del distrito mediante \texttt{update-ca-trust}. Alternativamente, puede instruirse a la biblioteca para utilizar un archivo de certificados específico en tiempo de ejecución configurando la opción \texttt{CURLOPT\_CAINFO} o el directorio con \texttt{CURLOPT\_CAPATH}.
 \end{pregunta}
 
 \begin{pregunta}{¿Cómo se recibe el cuerpo de una respuesta en C si la biblioteca entrega los datos por partes?}
@@ -942,7 +943,7 @@ En la Figura~\ref{fig:e7_incidents_create} y Figura~\ref{fig:e7_incidents_val} s
 En la Figura~\ref{fig:e7_incidents_close} y Figura~\ref{fig:e7_incidents_err} se comprueba el ciclo de cierre de incidentes (\texttt{nexusctl incidents close}) y el tratamiento diferenciado de códigos de error:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Cierre exitoso mediante PATCH (Figura~\ref{fig:e7_incidents_close}):} Al ejecutar \texttt{nexusctl incidents close 12}, el cliente emite la petición \texttt{PATCH} modificando el estado del incidente a \texttt{closed} y devolviendo código \texttt{0}. Inmediatamente después, se realiza una consulta de verificación vía \texttt{--json incidents list} exportada a archivo; un script en Python inspecciona el JSON confirmando que el incidente 12 figura con \texttt{"status": "closed"} y su respectiva marca temporal de actualización (\texttt{updated\_at}).
-    \item \textbf{Gestión de incidentes inexistentes (Figura~\ref{fig:e7_incidents_err}):} Al intentar cerrar un identificador inexistente (\texttt{ID 99999}), la API retorna HTTP \texttt{404 Not Found}. El cliente interpreta la respuesta y emite el mensaje \texttt{"incidente 99999 no encontrado"}, saliendo con \texttt{código 2} (\texttt{NEXUSCTL\_EXIT\_API\_ERROR}), distinguiéndolo certeramente de un error de sintaxis (1), transporte (3) o certificados TLS (4).
+    \item \textbf{Gestión de incidentes inexistentes (Figura~\ref{fig:e7_incidents_err}):} Al intentar cerrar un identificador inexistente (\texttt{ID 999999}), la API retorna HTTP \texttt{404 Not Found}. El cliente interpreta la respuesta y emite el mensaje \texttt{"incidente 999999 no encontrado"}, saliendo con \texttt{código 2} (\texttt{NEXUSCTL\_EXIT\_API\_ERROR}), distinguiéndolo certeramente de un error de sintaxis (1), transporte (3) o certificados TLS (4).
 \end{itemize}
 
 \begin{figure}[H]
@@ -966,19 +967,24 @@ En la Figura~\ref{fig:e7_incidents_close} y Figura~\ref{fig:e7_incidents_err} se
 
 Para asegurar la reproducibilidad de la plataforma y evitar intervenciones manuales propensas a errores, se construyó el script de orquestación transaccional \textbf{\texttt{scripts/deploy.sh}}. La validación culmina con el ensayo integral de 14 pasos que recorre de punta a punta la plataforma operativa.
 
-\subsection{Secuencia Transaccional de Fases de \texttt{deploy.sh}}
+\subsection{Secuencia de Despliegue de \texttt{deploy.sh}}
+
+La instalación requiere paquetes, caché de Conan, usuarios, directorios y montaje SFTP previamente preparados según \path{docs/installation.md}. En las actualizaciones se debe coordinar manualmente una ventana sin cargas ni clientes escribiendo: el script no implementa una pausa general de escrituras ni una instantánea atómica de toda la máquina.
 
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Validación de dependencias y privilegios:} Comprueba privilegios de superusuario (\texttt{root}), espacio en disco y herramientas requeridas (\texttt{cmake}, compiladores C). Si faltan requisitos, aborta de inmediato sin alterar el sistema.
-    \item \textbf{Compilación y ejecución de pruebas unitarias:} Compila el proyecto y ejecuta la suite de pruebas unitarias automatizadas. Si las pruebas fallan en esta fase preliminar, el script se detiene de inmediato sin haber modificado nada del sistema en producción.
-    \item \textbf{Área de preparación (*staging*):} Prepara los binarios y archivos de configuración candidatos en un directorio temporal aislado.
-    \item \textbf{Captura de Snapshot Preventivo:} Se almacena una instantánea de los archivos en producción a reemplazar en \texttt{/var/backups/}\allowbreak\texttt{nexus/}\allowbreak\texttt{deploy-AAAAMMDD-.../}, conteniendo los binarios previos, archivos de configuración (\texttt{nexus.conf}), unidades de systemd, el estado de ejecución de los servicios y una copia consistente de la base SQLite (\texttt{nexus.db}) generada con su API de backup (sin incluir el árbol masivo de evidencias ni modificar la infraestructura externa).
-    \item \textbf{Instalación atómica:} Copia los binarios y archivos de configuración candidatos a sus rutas de destino del sistema.
-    \item \textbf{Instalación y recarga de Systemd:} Despliega unidades de servicio y temporizadores y ejecuta \texttt{systemctl daemon-reload} para forzar al init system a interpretar los nuevos ficheros.
-    \item \textbf{Reinicio y recarga de servicios:} Reinicia \texttt{nexus.service} y recarga la configuración de \texttt{nginx}.
-    \item \textbf{Validación de salud post-despliegue:} Invoca el script \texttt{health-check.sh}. Únicamente el código de retorno \texttt{0} confirma el éxito del despliegue.
-    \item \textbf{Rollback automático ante fallos:} Si el health check final no devuelve 0, el script dispara automáticamente la rutina de reversión: restituye los binarios anteriores, restaura la base SQLite y las configuraciones desde el snapshot, ejecuta \texttt{daemon-reload}, reanuda la versión sana previa e informa el fallo con código de salida no nulo.
+    \item \textbf{Validación de dependencias y privilegios:} Comprueba argumentos, privilegios, herramientas y paquetes disponibles en la caché local de Conan. Usa un bloqueo para excluir despliegues concurrentes y rechaza transacciones pendientes. No instala dependencias automáticamente ni realiza una comprobación específica de capacidad de disco antes del build.
+    \item \textbf{Detección de primera instalación:} Distingue la ausencia de binario, configuración y unidad previos. Si encuentra una base existente sin instalación reconocida, exige revisión manual en lugar de borrarla. En una instalación nueva comprueba además los requisitos previos de usuarios, directorios y montaje SFTP.
+    \item \textbf{Build independiente y pruebas:} Crea un directorio de compilación propio, configura y compila el código y ejecuta CTest en el entorno aislado de systemd. Si las pruebas fallan, termina antes de instalar archivos o cambiar servicios. Las configuraciones candidatas se toman del repositorio; no existe una fase separada de staging y validación integral de todas ellas.
+    \item \textbf{Snapshot preventivo:} Conserva los archivos gestionados previos, enlaces, estados de servicios y una copia consistente de SQLite en \path{/var/backups/nexus/}. Incluye el certificado público de confianza local y registra las unidades que antes no existían. No contiene el árbol completo de evidencias, las claves de la CA ni toda la configuración de firewall, Postfix o montajes.
+    \item \textbf{Instalación de binarios y configuración:} Reemplaza cada binario mediante escritura junto al destino y renombrado. Conserva \texttt{nexus.conf}; para otros archivos gestionados que difieren guarda una copia previa. El renombrado es atómico por archivo, no para el conjunto del despliegue.
+    \item \textbf{Confianza local en la primera instalación:} Incorpora únicamente el certificado público de la CA al almacén de confianza de Ubuntu y ejecuta \texttt{update-ca-certificates}. No sustituye automáticamente una CA local distinta. Este paso no se ejecuta en las actualizaciones.
+    \item \textbf{Unidades y servicios:} Instala las unidades y el script de backup, ejecuta \texttt{systemctl daemon-reload}, habilita nexus y el timer y reinicia nexus. Recarga Nginx o SSH si hay cambios pendientes. La activación final del timer queda para la confirmación.
+    \item \textbf{Primer backup:} En una instalación nueva ejecuta \texttt{nexus-backup.service} tras comprobar HTTPS. En actualizaciones no genera un backup adicional para ocultar un historial fallido.
+    \item \textbf{Validación y confirmación:} Ejecuta \texttt{health-check.sh} completo, incluidos los controles del backup. Solo el código \texttt{0} permite confirmar; se activa el timer, se persiste la fase final y se podan los snapshots confirmados antiguos.
+    \item \textbf{Rollback ante fallos posteriores al snapshot:} Intenta restaurar los archivos, la base y los estados inventariados, conservando el error original si la recuperación se completa. En primera instalación retira archivos y habilitaciones nuevos e informa que no había una versión anterior; conserva PKI, datos y backups generados para revisión. Un rollback incompleto devuelve \texttt{11}. No se promete revertir los recursos que el snapshot no incluye.
 \end{enumerate}
+
+La secuencia inicial corregida cuenta con pruebas de regresión con destinos temporales y componentes simulados. Su ejecución completa en una VM limpia y la validación por una persona externa siguen pendientes.
 
 \subsection{Garantía de Idempotencia}
 
@@ -991,7 +997,7 @@ Un despliegue es \textbf{idempotente} si ejecutarlo múltiples veces consecutiva
 \end{pregunta}
 
 \begin{pregunta}{¿Qué significa que un despliegue sea idempotente? ¿Qué pasa si se ejecuta dos veces seguidas?}
-    \textbf{Respuesta:} Significa que aplicar la automatización una o diez veces sobre el mismo estado produce exactamente el mismo resultado final predecible, sin efectos colaterales acumulativos. Si se ejecuta dos veces consecutivas con la misma versión de código, el script realiza la compilación y pruebas, pero al verificar que los binarios y configuraciones del sistema coinciden con los candidatos, no sobreescribe archivos, no recrea tablas en SQLite, no reinicia servicios superfluamente y sale con éxito (\texttt{código 0}) confirmando que el entorno ya está en el estado deseado.
+    \textbf{Respuesta:} Significa que aplicar la automatización una o diez veces sobre el mismo estado produce exactamente el mismo resultado final predecible, sin efectos colaterales acumulativos. Si se ejecuta dos veces consecutivas con la misma versión de código, el script realiza la compilación y pruebas, pero al verificar que los binarios y configuraciones del sistema coinciden con los candidatos, conserva los archivos idénticos y los datos. Sin embargo, vuelve a compilar, ejecutar pruebas y reiniciar nexus, por lo que cambian el PID y los tiempos de actividad. Sale con éxito (\texttt{código 0}) confirmando que el entorno ya está en el estado deseado.
 \end{pregunta}
 
 \begin{pregunta}{¿Por qué hay que recargar systemd después de instalar una unidad?}
@@ -999,7 +1005,7 @@ Un despliegue es \textbf{idempotente} si ejecutarlo múltiples veces consecutiva
 \end{pregunta}
 
 \begin{pregunta}{¿Qué parte del estado del sistema no puede revertir un rollback?}
-    \textbf{Respuesta:} Los efectos secundarios que hayan trascendido hacia el exterior del host o asentado en registros persistentes: correos electrónicos ya despachados por Postfix a la red, peticiones de clientes externos que hayan sido procesadas durante la ventana en que la versión fallida estuvo viva, y las trazas históricas inmutables ya escritas en \texttt{journald} o en la auditoría del sistema operativo. Un rollback revierte binarios, configuraciones y la base de datos local, pero no puede deshacer interacciones con el mundo exterior.
+    \textbf{Respuesta:} Los efectos secundarios que hayan trascendido hacia el exterior del host o asentado en registros persistentes: correos electrónicos ya despachados por Postfix a la red, peticiones de clientes externos que hayan sido procesadas durante la ventana en que la versión fallida estuvo viva, y las trazas históricas persistentes ya escritas en \texttt{journald} o en la auditoría del sistema operativo. Un rollback revierte binarios, configuraciones y la base de datos local, pero no puede deshacer interacciones con el mundo exterior.
 \end{pregunta}
 
 \begin{pregunta}{¿Qué debería hacer el script si lo ejecutan sin privilegios suficientes?}
@@ -1101,7 +1107,7 @@ Se inspecciona el buzón de correo local \texttt{/var/mail/nexus-ops} en \texttt
 \end{figure}
 
 \subsubsection*{Paso 8 · Inspección de Eventos de Auditoría vía API}
-El operador ejecuta una consulta HTTP desde \texttt{field-terminal} (consumiendo el endpoint \texttt{GET /api/v1/audit} mediante \texttt{nexusctl} o \texttt{curl}), verificando la lista estructurada de eventos registrados en la tabla de auditoría (altas de unidades, asociaciones de evidencia y notificaciones críticas) con sus correspondientes atributos de actor, acción, recurso, resultado y marca temporal.
+El operador ejecuta una consulta HTTP desde \texttt{field-terminal} (consumiendo el endpoint \texttt{GET /api/v1/audit} mediante \texttt{curl}), verificando la lista estructurada de eventos registrados en la tabla de auditoría (altas de unidades, asociaciones de evidencia y notificaciones críticas) con sus correspondientes atributos de actor, acción, recurso, resultado y marca temporal.
 
 \begin{figure}[H]
     \centering
@@ -1204,7 +1210,7 @@ El Trabajo Práctico N$^\circ$ 3 concluye con la consolidación de \textbf{NEXUS
 
 La segmentación interna de \texttt{nexusd} mediante tipos de datos opacos y módulos funcionales estrictos (\texttt{registry}, \texttt{incidents}, \texttt{evidence}, \texttt{notifications}, \texttt{audit}) no fue una mera decisión estilística: constituyó el diseño preparatorio indispensable para habilitar la futura transición hacia una \textbf{arquitectura distribuida de microservicios}, correspondiente a la \textbf{Issue \#91} y al criterio de evaluación \textbf{[EC-05]}.
 
-\begin{notabox}{Aclaración de Alcance y Metodología (Consigna TP3)}
+\begin{notabox}[Aclaración de Alcance y Metodología (Consigna TP3)]
 En el marco de \textit{Sistemas Operativos I}, \textbf{no se implementan microservicios ni se presenta dicha arquitectura como existente o en ejecución}. El sistema en producción actual es el monolito modular verificado experimentalmente. La presente sección constituye un \textbf{documento técnico de análisis y diseño arquitectónico} para la asignatura correlativa \textit{Sistemas Operativos II}, donde se abordarán formalmente la concurrencia distribuida, la comunicación por sockets en red, la tolerancia a fallos parciales y la partición de estados.
 \end{notabox}
 
@@ -1319,8 +1325,8 @@ A continuación se desarrolla de manera explícita cada uno de los seis componen
     \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
     \begin{itemize}[leftmargin=*]
         \item \textit{Desacople de llamadas y ausencia de transacción ACID compartida:} En el monolito modular actual, \texttt{nexusd} registra el incidente en SQLite y posteriormente invoca de manera secuencial a las funciones de auditoría y notificación; \textbf{el código no garantiza actualmente una única transacción atómica ACID compartida en la base de datos para las tres acciones}. Al distribuir estos componentes en procesos o nodos separados por la red, el peligro de desincronización parcial se agudiza: si la red falla tras persistir el incidente, el evento de auditoría o la notificación podrían perderse irrevocablemente.
-        \item \textit{Patrón Outbox Transaccional (\textbf{Transactional Outbox Pattern}):} Para resolver la falta de transacciones distribuidas sin recurrir a protocolos pesados de bloqueo como 2PC, se propone que Incident Service inserte el incidente y un registro en su tabla técnica \texttt{outbox\_events} dentro de la \textbf{misma transacción local en su base de datos}. Un despachador en segundo plano lee la outbox y publica los eventos en el bus de red con reintentos automáticos garantizados.
-        \item \textit{Semántica de entrega y deduplicación:} En redes reales no es viable prometer entrega \textit{exactly-once} ante particiones de red. Se garantiza entrega \textbf{\textit{at-least-once}} (al menos una vez); los servicios consumidores (Notification y Audit) deben ser estrictamente idempotentes y descartar mensajes repetidos basándose en el identificador único de evento (\texttt{event\_id}).
+        \item \textit{Patrón Outbox Transaccional (\textbf{Transactional Outbox Pattern}):} Para resolver la falta de transacciones distribuidas sin recurrir a protocolos pesados de bloqueo como 2PC, se propone que Incident Service inserte el incidente y un registro en su tabla técnica \texttt{outbox\_events} dentro de la \textbf{misma transacción local en su base de datos}. Un despachador en segundo plano lee la outbox y publica los eventos en el bus de red con reintentos persistentes y acotados; la entrega depende de que se recuperen la conectividad y los consumidores.
+        \item \textit{Semántica de entrega y deduplicación:} En redes reales no es viable prometer entrega \textit{exactly-once} ante particiones de red. Se propone entrega \textbf{\textit{at-least-once}} (al menos una vez), condicionada a la persistencia de los eventos y a la recuperación de los receptores; los servicios consumidores (Notification y Audit) deben ser estrictamente idempotentes y descartar mensajes repetidos basándose en el identificador único de evento (\texttt{event\_id}).
         \item \textit{Identificadores de idempotencia de cliente:} Para prevenir la creación de incidentes duplicados cuando un cliente experimenta un \textit{timeout} de red en la recepción de la respuesta de un \texttt{POST}, la API requerirá la cabecera \texttt{Idempotency-Key} (u \texttt{operation\_id}). Si la petición se reintenta, el servicio devolverá la representación del recurso ya creado sin duplicar el registro en la base.
     \end{itemize}
     \item \textbf{Infraestructura de Soporte Remanente:} Motor transaccional local, temporizador \texttt{systemd.timer} o despachador en segundo plano supervisado por \texttt{systemd}, cuotas estrictas de recursos (\textit{cgroups}) y almacenamiento persistente protegido.
@@ -1387,16 +1393,16 @@ A continuación se desarrolla de manera explícita cada uno de los seis componen
     \item \textbf{Dependencias de Otros Servicios:} Ninguna dependencia síncrona; actúa como consumidor y receptor terminal de trazas.
     \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
     \begin{itemize}[leftmargin=*]
-        \item \textit{Desfase de relojes (\textbf{Clock Skew}):} En un monolito, cada evento invoca la llamada al sistema \texttt{clock\_gettime(}\allowbreak\texttt{CLOCK\_REALTIME)} sobre el kernel de un único host físico. En un clúster distribuido, cada nodo o máquina virtual posee desviaciones temporales de cuarzo. Por lo tanto, \textbf{las marcas de tiempo locales (\textit{timestamps}) por sí solas no garantizan ni definen un orden causal global absoluto}.
+        \item \textit{Desfase de relojes (\textbf{Clock Skew}):} En el monolito, las marcas temporales proceden del reloj de un único host. En un clúster distribuido, cada nodo o máquina virtual posee desviaciones temporales de cuarzo. Por lo tanto, \textbf{las marcas de tiempo locales (\textit{timestamps}) por sí solas no garantizan ni definen un orden causal global absoluto}.
         \item \textit{Pérdida, duplicación y alteración de orden en red:} Las trazas emitidas por la red pueden adelantarse o duplicarse ante reintentos.
         \item \textit{Estrategia de ordenamiento causal e idempotencia:}
         \begin{itemize}[leftmargin=*]
             \item Asignación obligatoria de un identificador universal de evento (\texttt{event\_id} UUIDv4) generado en el origen para descarte de duplicados mediante índices únicos en la ingesta.
             \item Preservación de dos marcas de tiempo diferenciadas: \texttt{timestamp\_origin} (momento de ocurrencia en el nodo emisor) y \texttt{timestamp\_ingestion} (momento de persistencia física en el Audit Service).
-            \item Implementación de números de secuencia monótonos o \textbf{relojes lógicos de Lamport} por entidad para reconstruir inequívocamente la secuencia temporal de las mutaciones.
+            \item Implementación de números de secuencia monótonos o \textbf{relojes lógicos de Lamport} por entidad para ordenar las versiones de cada entidad y registrar las relaciones causales conocidas; no establecen por sí solos el tiempo físico ni toda la causalidad global.
             \item Adopción transversal de un identificador de correlación (\texttt{correlation\_id}), propagado en las cabeceras HTTP (\texttt{X-Correlation-ID}) para enlazar causalmente peticiones del usuario con sus efectos derivados.
         \end{itemize}
-        \item \textit{Seguridad e Inmutabilidad Forense:} Es crucial enfatizar que la implementación actual sobre SQLite en un único archivo de base de datos \textbf{no ofrece garantías criptográficas de inmutabilidad}: cualquier usuario con privilegios de superusuario (\texttt{root}) o acceso directo al sistema de archivos podría modificar los registros históricos. Como propuesta para \textit{Sistemas Operativos II}, el Audit Service deberá estructurarse sobre volúmenes de disco montados con características \textbf{WORM} (\textit{Write Once, Read Many}) o implementar una estructura de \textbf{encadenamiento criptográfico} (donde cada evento incorpora el hash SHA-256 del registro precedente), garantizando la detección inmediata de cualquier adulteración retrospectiva.
+        \item \textit{Integridad y protección de la auditoría:} La base SQLite actual no ofrece inmutabilidad criptográfica frente a quien pueda modificar directamente sus archivos. Para SO II se propone limitar las escrituras al servicio y evaluar almacenamiento WORM o encadenamiento de hashes. Un encadenamiento permite detectar cambios al verificarlo contra una referencia confiable; no garantiza detección inmediata ni protege si un atacante puede reescribir toda la cadena y sus referencias. Serían necesarios puntos de control firmados o conservados fuera del alcance del mismo atacante, junto con verificaciones periódicas y copias independientes.
     \end{itemize}
     \item \textbf{Infraestructura de Soporte Remanente:} Sincronización horaria rigurosa entre todos los nodos del clúster mediante demonios NTP/Chrony, almacenamiento en particiones con cuotas de disco aisladas para evitar la denegación de servicio del sistema operativo por saturación de registros, y políticas estrictas de respaldo forense.
 \end{enumerate}
@@ -1411,7 +1417,7 @@ A continuación se desarrolla de manera explícita cada uno de los seis componen
     \begin{itemize}[leftmargin=*]
         \item \texttt{/api/v1/units} y \texttt{/api/v1/operators} $\longrightarrow$ \texttt{Registry Service}
         \item \texttt{/api/v1/incidents} $\longrightarrow$ \texttt{Incident Service}
-        \item \texttt{/api/v1/incidents/*/evidence} $\longrightarrow$ \texttt{Evidence Service}
+        \item \path{/api/v1/incidents/*/evidence} $\longrightarrow$ \texttt{Evidence Service}
         \item \texttt{/api/v1/notifications} $\longrightarrow$ \texttt{Notification Service}
         \item \texttt{/api/v1/audit} $\longrightarrow$ \texttt{Audit Service}
         \item \texttt{/health} $\longrightarrow$ Agregador de salud del clúster
@@ -1431,16 +1437,16 @@ A continuación se desarrolla de manera explícita cada uno de los seis componen
 La descomposición de un sistema monolítico hacia servicios desacoplados traslada la complejidad desde las estructuras de datos en memoria y el compilador de C hacia la red y el sistema operativo. A continuación se sintetizan los principios técnicos transversales que gobernarán dicha arquitectura en \textit{Sistemas Operativos II}:
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Pérdida de Claves Foráneas y Atomicidad Compartida:} En SQLite, una sentencia como \texttt{FOREIGN KEY (unit\_id) REFERENCES units(id)} es validada a costo cero por el motor transaccional dentro del mismo proceso. En microservicios con bases de datos segregadas por servicio, las claves foráneas a nivel de base de datos \textbf{dejan de existir}. Pasan a ser identificadores lógicos cuya validez debe ser verificada a través de llamadas de red o eventos, trasladando la responsabilidad de la coherencia a la capa de aplicación y a mecanismos de consistencia eventual.
-    \item \textbf{Consistencia Eventual y Estados Intermedios Visibles:} En un entorno desacoplado rige el Teorema CAP. Para preservar la disponibilidad del distrito ante fallos de enlaces, se renuncia a la consistencia inmediata estricta. Como consecuencia, pueden existir ventanas temporales donde un incidente ha sido creado y devuelto al cliente, pero su evento de auditoría aún no se refleja en la consulta forense o su alerta permanece encolada en el servicio de notificaciones. Los clientes deben diseñarse para tolerar estados intermedios.
+    \item \textbf{Pérdida de Claves Foráneas y Atomicidad Compartida:} En SQLite, una referencia como \texttt{unit\_id} puede comprobarse mediante una clave foránea local. Esa verificación tiene costo, pero no requiere una llamada de red. Al separar las bases se pierden las restricciones y las transacciones que abarcaban datos de servicios distintos; cada servicio puede conservar claves foráneas entre sus propias tablas. Las referencias externas pasan a ser identificadores lógicos validados mediante contratos de API, eventos y políticas explícitas de consistencia.
+    \item \textbf{Consistencia Eventual y Estados Intermedios Visibles:} La consistencia debe elegirse por operación. Ante una partición de red no se puede garantizar simultáneamente consistencia fuerte y disponibilidad para todas las solicitudes. La propuesta permite propagación eventual de auditoría y notificaciones, mientras que una validación indispensable puede responder con error si su servicio de referencia no está disponible. Pueden existir ventanas donde un incidente ya esté creado pero su alerta aún no haya sido entregada; los clientes deben distinguir esos estados.
     \item \textbf{El Dilema del Resultado Incierto ante Timeouts:} En una llamada a función local en C, la operación concluye con éxito o falla con código de retorno. En una red TCP/IP, un tiempo de espera agotado (\textit{timeout}) no define el estado del servidor remoto: la petición pudo haberse perdido en el viaje de ida, haber sido ejecutada con éxito en el destino y haber fallado en la confirmación de vuelta, o permanecer todavía encolada. El cliente no puede asumir que la operación no ocurrió.
     \item \textbf{Políticas de Reintento con Dispersión (\textit{Jitter}) y Deduplicación:} Ante fallos transitorios, los componentes deben reintentar la comunicación aplicando retraso exponencial con fluctuación aleatoria (\textit{jitter}) para evitar el colapso por resonancia conocido como tormenta de reconexión (\textit{thundering herd problem}). Todo receptor en red debe implementar deduplicación mediante claves de idempotencia.
     \item \textbf{Contratos Estrictos y Versionado de Interfaces:} La comunicación entre módulos que previamente compartían archivos de cabecera en C (\texttt{.h}) pasa a depender de contratos de red serializados (JSON Schemas, Protobuf o especificaciones OpenAPI). Cualquier evolución en los esquemas de datos o en los eventos asíncronos debe respetar el \textit{Principio de Robustez de Postel} (ser conservador en lo que se envía y tolerante en lo que se recibe) y contemplar versionado explícito (\texttt{/api/v1/}, \texttt{/api/v2/}) para garantizar compatibilidad hacia atrás.
     \item \textbf{Observabilidad Distribuida y Trazabilidad:} En un monolito, la depuración se realiza inspeccionando el espacio de memoria con \texttt{gdb} o analizando los registros unificados en \texttt{journald}. En microservicios, una única operación del usuario atraviesa múltiples saltos de red. Resulta indispensable inyectar un \textbf{identificador de correlación} (\texttt{X-Correlation-ID}) en el API Gateway y propagarlo obligatoriamente en cada llamada HTTP/gRPC y en cada evento de la outbox, acompañado de métricas estandarizadas y sondeos de salud (\textit{readiness} y \textit{liveness probes}) por cada servicio.
-    \item \textbf{Copias de Seguridad y Restauraciones Coordinadas:} En el monolito de \textit{Sistemas Operativos I}, la consistencia absoluta de un backup se resuelve simplemente copiando el archivo \texttt{nexus.db} bajo una transacción de SQLite y archivando el directorio de evidencias. En un esquema con múltiples bases de datos distribuidas, \textbf{restaurar la base de un solo servicio de forma aislada provocaría una corrupción lógica catastrófica en el clúster} (por ejemplo, revivir incidentes que apuntan a unidades eliminadas, o perder eventos que ya fueron notificados al exterior). Los procedimientos de recuperación en sistemas distribuidos exigen puntos de sincronización coordinados (\textit{distributed snapshots}), marcas de agua temporales coherentes o estrategias de reconstrucción basadas en el registro secuencial de eventos (\textit{Event Sourcing}).
+    \item \textbf{Copias de Seguridad y Restauraciones Coordinadas:} La API de backup de SQLite produce una copia consistente de la base, pero copiar además los archivos de evidencia no constituye una transacción atómica común entre base y sistema de archivos. Se requiere coordinar las escrituras y comprobar la correspondencia de ambos. Con varias bases, restaurar un servicio aisladamente puede dejar referencias o eventos inconsistentes; la recuperación debe definir puntos compatibles, reconciliación y tratamiento de mensajes ya emitidos. No todos los casos requieren snapshots distribuidos ni Event Sourcing: esas son alternativas de diseño que deben justificarse.
     \item \textbf{Seguridad Inter-Servicios en el Perímetro Interno:} Al migrar a procesos distribuidos, la red interna deja de considerarse confiable. Se requiere la adopción de \textbf{mTLS (TLS mutuo)} para autenticar criptográficamente la identidad de cada servicio emisor y cifrar el tráfico inter-nodo, gestión aislada de credenciales mediante secretos del sistema operativo y segmentación de cortafuegos en cada host.
     \item \textbf{Infraestructura del Sistema Operativo que Permanece Indispensable:} La descomposición en microservicios no elimina la necesidad de la infraestructura del sistema operativo; por el contrario, la jerarquiza. Componentes fundamentales como \textbf{systemd} (supervisión, reinicio automático y gobernanza de cgroups v2), \textbf{Nginx} (borde perimetral y terminación TLS), \textbf{Postfix} (encolado y entrega SMTP), \textbf{OpenSSH} (servidor SFTP enjaulado), \textbf{journald / logrotate} (gestión y rotación de registros de auditoría) y los subsistemas de archivos locales continúan siendo el cimiento operativo esencial sobre el cual descansan los servicios distribuidos.
-    \item \textbf{Independencia Tecnológica: Elección de Motores de Persistencia y Brokers:} Debe subrayarse que la transición arquitectónica hacia servicios desacoplados \textbf{no exige abandonar de inmediato SQLite ni impone la instalación obligatoria de brokers pesados como Kafka o RabbitMQ}. En una primera fase evolutiva de \textit{Sistemas Operativos II}, cada servicio puede operar con total independencia sobre su propio archivo SQLite local debidamente segregado, y la mensajería asíncrona puede resolverse mediante técnicas nativas del sistema operativo (colas de mensajes POSIX, sockets UNIX locales o demonios ligeros de polling de outbox) antes de dar el salto hacia clústeres cliente-servidor externos.
+    \item \textbf{Independencia Tecnológica: Elección de Motores de Persistencia y Brokers:} La propuesta no exige abandonar SQLite ni instalar Kafka o RabbitMQ. Cada servicio podría usar su propio archivo SQLite local. Un despachador de outbox podría enviar eventos por HTTP o sockets TCP hacia servicios ubicados en otros nodos, con confirmación, reintentos y deduplicación. Las colas POSIX y los sockets UNIX son alternativas para procesos del mismo host: no comunican por sí solos máquinas distintas. Un broker sería una opción futura, no un componente ya implementado.
 \end{itemize}
 
 \subsection{Matriz Comparativa de Componentes y Evolución Arquitectónica}
@@ -1463,7 +1469,7 @@ En la Tabla~\ref{tab:microservicios_comparativa} se sintetizan las característi
         \textbf{\texttt{evidence}} & Evidence Service & Metadatos \texttt{evidence} y archivos en disco. & \texttt{/incidents/\{id\}/}\allowbreak\texttt{evidence}, descarga & Incident (síncrono, valida existencia). & OpenSSH (SFTP chroot), permisos POSIX, cuotas disco. \\
         \rowcolor{rowalt}
         \textbf{\texttt{notifications}} & Notification Service & Tablas \texttt{notifications} e historial de intentos. & Ingesta POST, consumidor eventos críticos & Incident (asíncrono); Postfix MTA local. & Postfix spool, buzones del sistema, systemd timer. \\
-        \textbf{\texttt{audit}} & Audit Service & Tabla \texttt{audit\_events} append-only. & \texttt{POST /api/v1/audit}, consulta forense & Ninguna (receptor desacoplado). & Cron/NTP sincronizado, partición WORM, logrotate. \\
+        \textbf{\texttt{audit}} & Audit Service & Tabla \texttt{audit\_events} append-only. & \texttt{POST /api/v1/audit}, consulta forense & Ninguna (receptor desacoplado). & NTP/Chrony, almacenamiento protegido, backups. \\
         \rowcolor{rowalt}
         \textbf{\texttt{Nginx}} & API Gateway & Configuración proxy, cert y clave servidor X.509, ACLs. & Punto de entrada perimetral (HTTPS :443) & Todos los microservicios internos. & Nginx, OpenSSL/CA distrital, SELinux, cortafuegos. \\
         \bottomrule
@@ -1483,11 +1489,11 @@ El desarrollo e integración integral del Capítulo 3 ha permitido transformar e
 A lo largo de las ocho etapas de implementación y los escenarios obligatorios de contingencia, se consolidaron las siguientes capacidades clave del sistema:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Seguridad y Defensa en Profundidad:} Se verificó el confinamiento estricto de la API en el lazo local (\texttt{127.0.0.1:8080}), obligando a que todo tráfico externo atraviese Nginx bajo HTTPS con cifrado TLS fuerte, con políticas restrictivas de cortafuegos (\texttt{ufw} en \texttt{sector-core} y \texttt{firewalld} en \texttt{field-terminal}), confinamiento de procesos mediante SELinux en modo estricto (\textit{Enforcing}) y aislamiento de cuentas sin privilegios administrativos ni acceso a intérpretes de comandos (\texttt{nexus\_evidence} bajo \texttt{/usr/sbin/nologin} y chroot SFTP).
-    \item \textbf{Preservación de Permisos de Evidencia en Restauración:} En el procedimiento de recuperación (\texttt{restore.sh}), se integró la corrección explícita para restituir no solo los binarios de evidencia y la base de datos, sino también la estructura estricta de propiedad y permisos POSIX (\texttt{chmod 0640}, \texttt{chown nexus:nexus}), previniendo fallos de lectura o escaladas accidentales tras una catástrofe.
+    \item \textbf{Preservación de Permisos de Evidencia en Restauración:} Se corrigió \texttt{restore.sh} para conservar propietarios y permisos de los directorios existentes al recuperar los datos. En particular, \texttt{incoming} debe mantener \texttt{nexus\_evidence:nexus} y modo \texttt{2750}; los archivos de evidencia se dejan en modo \texttt{0640}. Si faltan los directorios, se recrea el directorio de evidencias como \texttt{nexus:nexus} con modo \texttt{0700} e \texttt{incoming} con el propietario y modo establecidos por el diseño. No corresponde aplicar \texttt{nexus:nexus} indiscriminadamente a todo el árbol.
     \item \textbf{Completitud Operativa y Ejemplos de Registro:} Se completó el aprovisionamiento del perfil del operador en el catálogo y la documentación de ejemplos concretos de invocación con \texttt{curl} sobre HTTPS para el alta y consulta de unidades tácticas, sirviendo de referencia operativa para los scripts de integración.
-    \item \textbf{Resiliencia Defensiva de la Capa de Datos (EC-02):} Se implementó y verificó experimentalmente la tolerancia ante la indisponibilidad de la base de datos en \texttt{nexusd}. Ante el apartamiento o bloqueo del archivo SQLite, el demonio responde de forma homogénea con código semántico \textbf{HTTP 503 Service Unavailable} (\texttt{database\_unavailable}) en la totalidad de sus rutas, \textbf{sin terminar el proceso ni alterar su PID (1552)}, reanudando el servicio nominal de forma automática e inmediata al restaurarse la base.
+    \item \textbf{Resiliencia de la Capa de Datos (EC-02):} En un ensayo con un proceso real y una base temporal, se apartó el archivo SQLite y se comprobaron respuestas HTTP \texttt{503} con \texttt{database\_unavailable} en las rutas dependientes del almacenamiento. Al restituir el archivo, las consultas volvieron a HTTP \texttt{200}, con los datos intactos y el mismo PID \texttt{1552}. Esta evidencia no corresponde a una intervención sobre la base del servicio instalado.
     \item \textbf{Diagnóstico y Observabilidad Ampliada:} La herramienta \texttt{collect-diagnostics.sh} fue extendida para recolectar el porcentaje promedio de CPU y consumo de memoria de los procesos críticos mediante \texttt{ps}, marcas de tiempo de inicialización de los servicios del sistema operativo e inspección de denegaciones AVC recientes en los registros de auditoría de SELinux.
-    \item \textbf{Aprovisionamiento Inicial y Cadena de Confianza:} El procedimiento de despliegue (\texttt{deploy.sh}) incorpora de forma automática el certificado público de la Autoridad Certificante (CA) local en el almacén de certificados de confianza del sistema (\texttt{/usr/local/share/ca-certificates/}) y genera un primer backup verificado de contingencia, permitiendo verificar la salud operativa mediante \texttt{health-check.sh} con código de retorno \texttt{0} en las pruebas controladas.
+    \item \textbf{Aprovisionamiento Inicial y Cadena de Confianza:} El procedimiento de despliegue (\texttt{deploy.sh}) incorpora de forma automática el certificado público de la Autoridad Certificante (CA) local en el almacén de certificados de confianza del sistema (\path{/usr/local/share/ca-certificates/}) y genera un primer backup verificado de contingencia, permitiendo verificar la salud operativa mediante \texttt{health-check.sh} con código de retorno \texttt{0} en las pruebas controladas.
 \end{itemize}
 
 \subsection{Declaración Explícita de Límites Reales del Proyecto}
