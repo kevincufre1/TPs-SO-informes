@@ -951,8 +951,8 @@ El sistema fue diseñado y evaluado bajo condiciones adversas, demostrando la ca
 \begin{enumerate}[leftmargin=*]
     \item \textbf{Falla 1 · Proceso Terminado Abruptamente (\texttt{kill -9}):}
     Se emitió una señal no interceptable \texttt{SIGKILL} al proceso de \texttt{nexusd}. El kernel finalizó el proceso de inmediato. El supervisor \texttt{systemd} detectó la pérdida del PID principal, esperó el tiempo de gracia (\texttt{RestartSec=2s}) y reanudó automáticamente el servicio con un nuevo PID, registrando el evento en journald con \texttt{code=killed, status=9/KILL} (documentado experimentalmente en la Figura~\ref{fig:e4_recuperacion}).
-    \item \textbf{Falla 2 · Base de Datos No Disponible:}
-    Al interrumpirse el acceso al archivo SQLite (por bloqueo exclusivo prolongado o remoción de permisos), \texttt{nexusd} atrapa el código de retorno de la biblioteca, no sufre caída de proceso (\textit{no crash}), emite una advertencia estructurada al registro de auditoría y retorna al cliente un código HTTP semántico (\texttt{500 Internal Server Error} o \texttt{503 Service Unavailable}) con cuerpo JSON explicativo.
+    \item \textbf{Falla 2 · Base de Datos No Disponible (EC-02):}
+    Al interrumpirse el acceso al archivo SQLite de forma imprevista mientras el demonio sigue en ejecución, \texttt{nexusd} atrapa la condición de fallo sin abortar el proceso. Emite respuestas HTTP semánticas \texttt{503 Service Unavailable} (\texttt{database\_unavailable}) en todos los endpoints que dependen del almacenamiento (no únicamente en \texttt{/health}), y al restablecerse el acceso reanuda el servicio con código 200 conservando el mismo PID (documentado experimentalmente en la Figura~\ref{fig:falla2_db}).
     \item \textbf{Falla 3 · Pérdida Catastrófica de Información:}
     Se eliminó intencionalmente el archivo de base de datos \texttt{nexus.db} y los archivos físicos de evidencia. Siguiendo el procedimiento documentado, se ejecutó \texttt{restore.sh} recuperando la totalidad de unidades, operadores, incidentes y sumas de control desde el último backup consistente (documentado en la Figura~\ref{fig:e5_restauracion}).
 \end{enumerate}
@@ -1074,14 +1074,21 @@ Durante la evaluación final en tiempo real, se ejecutó el circuito integral en
     \label{fig:integral_pt3}
 \end{figure}
 
-\begin{capturafaltante}{Respuesta de la API ante Base de Datos Inaccesible (Falla 2)}{E9\_I90\_01\_falla2\_db\_down.png}
-    \textbf{Archivo requerido:} \texttt{images/E9\_I90\_01\_falla2\_db\_down.png}\\
-    \textbf{Descripción:} Captura de terminal mostrando la respuesta de la API cuando la base de datos no está disponible (ej. tras renombrar temporalmente \texttt{nexus.db} o cambiar sus permisos):\\
-    \texttt{\$ curl -i https://sector-core/health}\\[0.1cm]
-    \textbf{Qué debe mostrar:} La API respondiendo con error semántico HTTP (\texttt{503} o \texttt{500}), JSON describiendo el fallo, y demostrando que el proceso \texttt{nexusd} sigue vivo y no se cayó (\texttt{systemctl is-active nexus}).\\
-    \textit{Línea para descomentar cuando se agregue la captura:}
-    % \includegraphics[width=0.88\textwidth]{images/E9_I90_01_falla2_db_down.png}
-\end{capturafaltante}
+\subsection{Evidencia Experimental: Falla 2 · Base de Datos No Disponible (EC-02)}
+
+En la Figura~\ref{fig:falla2_db} se documenta la ejecución automatizada del guion de contingencia \texttt{tests/integration/test-database-unavailable.py} sobre el binario en ejecución de \texttt{nexusd}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Estado inicial nominal:} La API arranca atendiendo peticiones con código HTTP \texttt{200 OK} bajo el proceso principal con identificador \texttt{PID 1552}.
+    \item \textbf{Aislamiento defensivo ante pérdida de base:} Al apartar temporalmente el archivo de base de datos mientras el demonio permanece en ejecución continua, \texttt{nexusd} atrapa los fallos de consulta de SQLite a nivel de capa de datos. En lugar de abortar abruptamente (\textit{crash}) o emitir excepciones no controladas, el servidor intercepta el error y responde con código semántico \textbf{HTTP 503 Service Unavailable} y cuerpo \texttt{database\_unavailable} en la totalidad de rutas dependientes (\texttt{/health}, \texttt{/api/v1/health}, \texttt{/api/v1/units}, \texttt{/api/v1/operators}, \texttt{/api/v1/incidents}, evidencias y auditoría).
+    \item \textbf{Recuperación transparente sin reinicio de proceso:} Una vez restituido el archivo de base de datos, el servicio reanuda de inmediato el despacho de respuestas HTTP \texttt{200 OK} con los datos preexistentes intactos, demostrando que \textbf{conservó el mismo PID 1552} durante todo el incidente y finalizando la prueba con código de salida \texttt{0} (\texttt{Código de demostración EC-02: 0}).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/FALLA2_I88_01_nexusd_bd_inaccesible.png}
+    \caption{Demostración de Falla 2 (EC-02): Respuesta HTTP 503 generalizada ante base inaccesible y supervivencia de \texttt{nexusd} conservando el mismo PID (1552).}
+    \label{fig:falla2_db}
+\end{figure}
 
 % ==============================================================================
 % SECCIÓN 10: DOCUMENTO FINAL DE CIERRE — HACIA SISTEMAS OPERATIVOS II
