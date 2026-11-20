@@ -940,6 +940,7 @@ En la Figura~\ref{fig:e8_rollback} se documenta el comportamiento de reversión 
 \end{figure}
 
 \subsection{Recorrido Paso a Paso de la Prueba Integral (14 Pasos)}
+\label{sec:integral}
 
 La evaluación final del sector siguió un guion estandarizado y reproducible ejecutado en tiempo real con ambos nodos interconectados. A continuación se presenta cada uno de los 14 pasos junto a su respectiva evidencia experimental ampliada:
 
@@ -1083,7 +1084,7 @@ El sistema fue diseñado y evaluado bajo condiciones adversas, demostrando la ca
 
 \subsection{Evidencia Experimental: Falla 2 · Base de Datos No Disponible (EC-02)}
 
-En la Figura~\ref{fig:falla2_db} se documenta la ejecución automatizada del guion de contingencia \texttt{tests/integration/test-database-unavailable.py} sobre el binario en ejecución de \texttt{nexusd}:
+En la Figura~\ref{fig:falla2_db} se documenta la ejecución automatizada del guion de contingencia \texttt{test-database-unavailable.py} (en \texttt{tests/integration/}) sobre el binario en ejecución de \texttt{nexusd}:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Estado inicial nominal:} La API arranca atendiendo peticiones con código HTTP \texttt{200 OK} bajo el proceso principal con identificador \texttt{PID 1552}.
     \item \textbf{Aislamiento defensivo ante pérdida de base:} Al apartar temporalmente el archivo de base de datos mientras el demonio permanece en ejecución continua, \texttt{nexusd} atrapa los fallos de consulta de SQLite a nivel de capa de datos. En lugar de abortar abruptamente (\textit{crash}) o emitir excepciones no controladas, el servidor intercepta el error y responde con código semántico \textbf{HTTP 503 Service Unavailable} y cuerpo \texttt{database\_unavailable} en la totalidad de rutas dependientes (\texttt{/health}, \texttt{/api/v1/health}, \texttt{/api/v1/units}, \texttt{/api/v1/operators}, \texttt{/api/v1/incidents}, evidencias y auditoría).
@@ -1098,59 +1099,310 @@ En la Figura~\ref{fig:falla2_db} se documenta la ejecución automatizada del gui
 \end{figure}
 
 % ==============================================================================
-% SECCIÓN 10: DOCUMENTO FINAL DE CIERRE — HACIA SISTEMAS OPERATIVOS II
+% SECCIÓN 10: DOCUMENTO DE MIGRACIÓN HACIA SISTEMAS OPERATIVOS II
 % ==============================================================================
-\section{Documento Final de Cierre: Evolución Hacia Sistemas Operativos II}
+\section{Documento de migración hacia Sistemas Operativos II}
+\label{sec:migracion_so2}
 
-NEXUS-9 concluye la asignatura como un monolito modular: una única aplicación compilada en C17, ejecutándose en un nodo centralizado, con límites arquitectónicos definidos mediante abstracciones de tipos de datos opacos. La separación modular no fue accidental: constituyó el diseño preparatorio indispensable para posibilitar una futura descomposición hacia una \textbf{arquitectura distribuida de microservicios}.
+El Trabajo Práctico N$^\circ$ 3 concluye con la consolidación de \textbf{NEXUS-9} como un monolito modular: una única aplicación ejecutable (\texttt{nexusd}), compilada en C17, operando en el nodo centralizado \texttt{sector-core} (Ubuntu Server), escuchando exclusivamente en el lazo local (\texttt{127.0.0.1:8080}), respaldada por una base de datos relacional integrada en SQLite (\texttt{nexus.db}) y expuesta hacia la red perimetral mediante un proxy inverso con terminación TLS en Nginx (puerto 443 HTTPS). En el nodo periférico \texttt{field-terminal} (Rocky Linux), los operadores interactúan contra dicha API utilizando el cliente nativo de línea de comandos \texttt{nexusctl} y transfieren archivos a través de canales seguros OpenSSH/SFTP.
 
-\subsection{Matriz de Transición Modular a Servicios Distribuidos}
+La segmentación interna de \texttt{nexusd} mediante tipos de datos opacos y módulos funcionales estrictos (\texttt{registry}, \texttt{incidents}, \texttt{evidence}, \texttt{notifications}, \texttt{audit}) no fue una mera decisión estilística: constituyó el diseño preparatorio indispensable para habilitar la futura transición hacia una \textbf{arquitectura distribuida de microservicios}, correspondiente a la \textbf{Issue \#91} y al criterio de evaluación \textbf{[EC-05]}.
+
+\begin{notabox}{Aclaración de Alcance y Metodología (Consigna TP3)}
+En el marco de \textit{Sistemas Operativos I}, \textbf{no se implementan microservicios ni se presenta dicha arquitectura como existente o en ejecución}. El sistema en producción actual es el monolito modular verificado experimentalmente. La presente sección constituye un \textbf{documento técnico de análisis y diseño arquitectónico} para la asignatura correlativa \textit{Sistemas Operativos II}, donde se abordarán formalmente la concurrencia distribuida, la comunicación por sockets en red, la tolerancia a fallos parciales y la partición de estados.
+\end{notabox}
+
+\subsection{Topología Conceptual Propuesta}
+
+En la Figura~\ref{fig:arquitectura_so2} se ilustra la descomposición proyectada de los componentes del monolito hacia servicios autónomos que interactúan mediante la red interna del distrito, complementados por un canal de mensajería asíncrona y respaldados por la infraestructura del sistema operativo Linux.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.6cm and 0.5cm,
+        scale=0.82, transform shape,
+        box/.style={rectangle, draw=uncblue!90, fill=boxbg, rounded corners=2pt, minimum width=2.5cm, minimum height=0.9cm, align=center, font=\scriptsize\bfseries, line width=0.8pt},
+        gwbox/.style={rectangle, draw=primary, fill=uncblue!12, rounded corners=3pt, minimum width=13.0cm, minimum height=0.85cm, align=center, font=\footnotesize\bfseries, line width=1pt},
+        actorbox/.style={rectangle, draw=darkslate!80, fill=darkslate!10, rounded corners=2pt, minimum width=3.8cm, minimum height=0.8cm, align=center, font=\scriptsize\bfseries, line width=0.8pt},
+        busbox/.style={rectangle, draw=accentteal!90, fill=accentteal!15, rounded corners=2pt, minimum width=6.2cm, minimum height=0.75cm, align=center, font=\scriptsize\bfseries, line width=0.9pt},
+        infrabox/.style={rectangle, draw=darkslate!40, fill=darkslate!6, dashed, rounded corners=4pt, line width=0.6pt},
+        arrow/.style={-{Stealth[scale=0.85]}, draw=uncblue!90, line width=0.8pt},
+        eventarrow/.style={-{Stealth[scale=0.85]}, draw=accentteal!90, dashed, line width=0.85pt},
+        sftparrow/.style={-{Stealth[scale=0.85]}, draw=primary, dotted, line width=1pt}
+    ]
+    % Field terminal
+    \node[actorbox] (terminal) at (0, 3.8) {\texttt{field-terminal} (Rocky Linux)\\Operador no privilegiado · \texttt{nexusctl}};
+    
+    % Gateway
+    \node[gwbox] (gateway) at (0, 2.3) {API Gateway (Nginx Evolucionado)\\Terminación TLS (HTTPS :443) $\cdot$ Reverse Proxy $\cdot$ Rate Limiting $\cdot$ Mapeo de Rutas Semánticas};
+
+    % Services layer
+    \node[box] (registry) at (-5.2, 0.4) {Registry Service\\Catálogo Unidades\\y Operadores};
+    \node[box] (incident) at (-2.6, 0.4) {Incident Service\\Ciclo de Vida y\\Outbox Transaccional};
+    \node[box] (evidence) at (0.0, 0.4) {Evidence Service\\Metadatos y Archivos\\Staging $\rightarrow$ Published};
+    \node[box] (notification) at (2.6, 0.4) {Notification Service\\Cola de Envíos\\MTA Local (Postfix)};
+    \node[box] (audit) at (5.2, 0.4) {Audit Service\\Ingesta Inmutable\\Append-Only};
+
+    % Event Bus / Outbox dispatcher
+    \node[busbox] (bus) at (1.3, -1.2) {Canal de Eventos Asíncronos / Transactional Outbox\\(\texttt{incident.critical\_created}, \texttt{incident.status\_changed})};
+
+    % External transfers / Infrastructure
+    \node[actorbox] (sftp) at (-4.2, -1.2) {OpenSSH / SFTP Server\\Cuenta restringida en chroot\\(\texttt{nexus\_evidence})};
+
+    % External Postfix
+    \node[actorbox] (postfix) at (4.8, -1.2) {Postfix MTA\\Buzón local / spool\\(\texttt{/var/mail/nexus})};
+
+    % Arrows from terminal to Gateway
+    \draw[arrow] (terminal) -- node[right, font=\tiny\bfseries] {HTTPS (443)} (gateway);
+    \draw[sftparrow] (terminal.west) to[out=190, in=150] node[left, font=\tiny\bfseries] {SFTP (22)} (sftp.west);
+
+    % Arrows from Gateway to Services
+    \draw[arrow] (gateway.south -| registry.north) -- (registry.north);
+    \draw[arrow] (gateway.south -| incident.north) -- (incident.north);
+    \draw[arrow] (gateway.south -| evidence.north) -- (evidence.north);
+    \draw[arrow] (gateway.south -| notification.north) -- (notification.north);
+    \draw[arrow] (gateway.south -| audit.north) -- (audit.north);
+
+    % Cross-service dependencies
+    \draw[arrow, uncblue!70] (incident) -- node[above, font=\tiny] {validar unit} (registry);
+    \draw[eventarrow] (incident.south) to[out=270, in=180] (bus.west);
+    \draw[eventarrow] (bus.north -| notification.south) -- (notification.south);
+    \draw[eventarrow] (bus.east) to[out=0, in=270] (audit.south);
+    \draw[arrow, uncblue!70] (evidence) -- node[above, font=\tiny] {validar ID} (incident);
+    \draw[sftparrow] (sftp) -- node[below, font=\tiny] {staging dir} (evidence.south -| sftp);
+    \draw[arrow, darkslate] (notification) -- (postfix);
+
+    % Background OS infrastructure box
+    \begin{scope}[on background layer]
+        \node[infrabox, fit=(sftp) (registry) (incident) (evidence) (notification) (audit) (bus) (postfix), label={[font=\tiny\bfseries\color{darkslate!70}, anchor=south east]south east:Infraestructura de Sistema Operativo Persistente: systemd $\cdot$ cgroups v2 $\cdot$ UFW/firewalld $\cdot$ timers $\cdot$ journald $\cdot$ almacenamiento}] {};
+    \end{scope}
+    \end{tikzpicture}
+    \caption{Topología conceptual de microservicios para Sistemas Operativos II: Descomposición modular de \texttt{nexusd} con API Gateway perimetral, almacenamiento segregado, desacoplamiento asíncrono y persistencia de infraestructura OS.}
+    \label{fig:arquitectura_so2}
+\end{figure}
+
+\subsection{Análisis Detallado por Servicio y Componente}
+
+A continuación se desarrolla de manera explícita cada uno de los seis componentes resultantes de la descomposición arquitectónica, detallando sus seis dimensiones operativas obligatorias.
+
+% ------------------------------------------------------------------------------
+\subsubsection{Registry Service (Evolución del módulo \texttt{registry})}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Responsabilidad y Límites:} Es la fuente de la verdad para el catálogo distrital de unidades móviles/tácticas y de los perfiles de operadores asignados. Garantiza que las identidades existan y que sus metadatos operativos sean consistentes. \textit{Límite estricto:} \textbf{No administra autenticación de sesiones, ni claves criptográficas de usuario, ni emisión de tokens JWT}; la identidad del operador en el dominio es puramente declarativa y descriptiva. Un futuro componente centralizado de identidad y acceso (IAM / Auth Service) gestionaría credenciales, pero dicho mecanismo no existe actualmente en el proyecto. Asimismo, Registry Service no interviene en la asignación de tareas ni en el flujo de incidentes.
+    \item \textbf{Datos que Administraría en Exclusiva:} Las tablas relacionales \texttt{units} (identificador, nombre, sector, estado de disponibilidad, marcas temporales) y \texttt{operators} (identificador, nombre de usuario, rol operativo, unidad preasignada). Ningún otro servicio del clúster tiene permiso para acceder, leer o escribir directamente sobre estas tablas.
+    \item \textbf{API que Expondría:}
+    \begin{itemize}[leftmargin=*]
+        \item \texttt{POST /api/v1/units} y \texttt{GET /api/v1/units} / \texttt{GET /api/v1/units/\{id\}} (gestión y consulta de unidades).
+        \item \texttt{POST /api/v1/operators} y \texttt{GET /api/v1/operators} / \texttt{GET /api/v1/operators/\{id\}} (gestión y consulta de operadores).
+        \item \texttt{GET /api/v1/units/\{id\}/validate} (verificación ligera de existencia y estado activo para consumo entre servicios).
+    \end{itemize}
+    \item \textbf{Dependencias de Otros Servicios:} Ninguna dependencia síncrona ni de negocio; es un servicio base o raíz de catálogo en el grafo de llamadas del sistema.
+    \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
+    \begin{itemize}[leftmargin=*]
+        \item \textit{Pérdida de la integridad referencial en memoria:} Actualmente, el módulo de incidentes verifica la validez del \texttt{unit\_id} realizando una búsqueda en memoria compartida o una subconsulta SQL protegida por una clave foránea (\texttt{FOREIGN KEY}). En red, Incident Service debe realizar una petición HTTP/gRPC hacia Registry Service.
+        \item \textit{Degradación o caída de Registry:} Si Registry se vuelve inalcanzable o experimenta latencias de red elevadas, la creación de incidentes se bloquearía por completo. Para mitigarlo, se propone implementar un \textbf{caché local de lectura en Incident Service} con tiempo de vida limitado (\textit{TTL} de 5 a 15 minutos) para unidades activas, complementado con un patrón \textbf{Circuit Breaker}. Si el circuito está abierto y la unidad no está en caché, Incident Service debe fallar de forma controlada respondiendo \texttt{HTTP 503 Service Unavailable} o \texttt{HTTP 422 Unprocessable Entity} semántico, evitando la saturación de descriptores de sockets por acumulación de hilos en espera.
+    \end{itemize}
+    \item \textbf{Infraestructura de Soporte Remanente:} Instancia dedicada de base de datos relacional (archivo SQLite segregado o motor cliente-servidor), unidad \texttt{systemd} con límites de memoria y cuota de CPU (\textit{cgroups v2}), políticas de cortafuegos de host para restringir la ingesta solo a peticiones procedentes del API Gateway e Incident Service, y scripts de copia de seguridad independientes.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsubsection{Incident Service (Evolución del módulo \texttt{incidents})}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Responsabilidad y Límites:} Es el núcleo transaccional del dominio de despacho. Administra el ciclo de vida completo de los incidentes y su máquina de estados finitos (transición lineal permitida únicamente de \texttt{open} hacia \texttt{closed}). \textit{Límite estricto:} \textbf{No despacha correos ni alertas hacia operadores} (delegado a Notification Service), \textbf{no almacena binarios de evidencia} (delegado a Evidence Service) y \textbf{no gestiona el registro histórico global de auditoría} (delegado a Audit Service).
+    \item \textbf{Datos que Administraría en Exclusiva:} La tabla \texttt{incidents} (identificador, título, severidad, estado, \texttt{unit\_id}, motivo de cierre, fecha de apertura y fecha de cierre) y la tabla técnica de bandeja de salida transaccional \texttt{outbox\_events}.
+    \item \textbf{API que Expondría:}
+    \begin{itemize}[leftmargin=*]
+        \item \texttt{POST /api/v1/incidents} (creación con severidad y asignación a unidad).
+        \item \texttt{GET /api/v1/incidents} y \texttt{GET /api/v1/incidents/\{id\}} (consulta y filtrado por estado o severidad).
+        \item \texttt{PATCH /api/v1/incidents/\{id\}/status} (transición de estado y cierre formal con motivo).
+        \item \texttt{GET /api/v1/incidents/\{id\}/exists} (verificación de existencia para Evidence Service).
+    \end{itemize}
+    \item \textbf{Dependencias de Otros Servicios:} Depende de \textbf{Registry Service} de forma sincrónica para validar la pertenencia de la unidad al crear el incidente. Produce eventos asíncronos consumidos por \textbf{Notification Service} (alertas críticas) y \textbf{Audit Service} (trazabilidad forense).
+    \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
+    \begin{itemize}[leftmargin=*]
+        \item \textit{Ruptura de la transacción atómica local:} En el monolito, registrar el incidente, insertar la traza de auditoría en \texttt{audit\_events} y encolar la notificación se ejecutaba dentro de una única transacción ACID en SQLite (\texttt{BEGIN ... COMMIT}). Al separar estos procesos en máquinas o procesos diferentes, una llamada de red fallida hacia auditoría o notificaciones tras confirmar el incidente en disco dejaría el estado del sistema gravemente desincronizado.
+        \item \textit{Patrón Outbox Transaccional (\textbf{Transactional Outbox Pattern}):} Para resolver la falta de transacciones distribuidas sin recurrir al costoso y frágil bloqueo de dos fases (2PC), Incident Service guarda el incidente y un registro en \texttt{outbox\_events} dentro de la \textbf{misma transacción atómica en su base de datos local}. Un hilo secundario o demonio despachador lee periódicamente la outbox y publica los eventos en el bus de red con reintentos automáticos.
+        \item \textit{Semántica de entrega y deduplicación:} En redes de computadoras reales es físicamente inviable garantizar entrega \textit{exactly-once} ante particiones de red. Se garantiza entrega \textbf{\textit{at-least-once}} (al menos una vez); los servicios consumidores (Notification y Audit) deben ser estrictamente idempotentes y descartar mensajes repetidos basándose en el identificador de evento (\texttt{event\_id}).
+        \item \textit{Identificadores de idempotencia de cliente:} Para prevenir la creación de incidentes duplicados cuando un cliente experimenta un \textit{timeout} de red en la recepción de la respuesta de un \texttt{POST}, la API requerirá la cabecera \texttt{Idempotency-Key} (u \texttt{operation\_id}). Si la petición se reintenta, el servicio devolverá la representación del recurso ya creado sin duplicar el registro en la base.
+    \end{itemize}
+    \item \textbf{Infraestructura de Soporte Remanente:} Motor transaccional local, temporizador \texttt{systemd.timer} o despachador en segundo plano supervisado por \texttt{systemd}, cuotas estrictas de recursos (\textit{cgroups}) y almacenamiento persistente protegido.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsubsection{Evidence Service (Evolución del módulo \texttt{evidence})}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Responsabilidad y Límites:} Administra el almacenamiento persistente de evidencias forenses binarias vinculadas a incidentes, calcula y verifica de manera determinista las sumas de verificación criptográficas (SHA-256), asocia los metadatos al incidente y provee la recuperación de los archivos. \textit{Límite estricto:} \textbf{No modifica estados de incidentes, no juzga la pertinencia de las pruebas y no valida identidades de usuarios}.
+    \item \textbf{Datos que Administraría en Exclusiva:} Los metadatos en la tabla \texttt{evidence} (identificador, \texttt{incident\_id}, nombre del archivo, tamaño en bytes, hash SHA-256, fecha de registro) y la jerarquía de almacenamiento físico en el sistema de archivos (directorios de cuarentena \texttt{staging} y archivos consolidados \texttt{published}).
+    \item \textbf{API que Expondría:}
+    \begin{itemize}[leftmargin=*]
+        \item \texttt{POST /api/v1/incidents/\{id\}/evidence} (registro de metadatos, verificación de hash y publicación formal).
+        \item \texttt{GET /api/v1/incidents/\{id\}/evidence} (listado de evidencias vinculadas).
+        \item \texttt{GET /api/v1/incidents/\{id\}/evidence/\{ev\_id\}} (descarga y consulta de metadatos de un archivo específico).
+        \item \texttt{POST /api/v1/evidence/upload} (canal de ingestión HTTP multiparte alternativo o de contingencia).
+    \end{itemize}
+    \item \textbf{Dependencias de Otros Servicios:} Depende de \textbf{Incident Service} para constatar que el incidente referenciado existe y permanece en estado abierto (\texttt{open}). Esta verificación se realiza mediante llamadas REST/gRPC directas sin invadir la base de datos de incidentes.
+    \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
+    \begin{itemize}[leftmargin=*]
+        \item \textit{Subidas interrumpidas y archivos huérfanos:} Actualmente, la transferencia ocurre por SFTP a un entorno enjaulado (\textit{chroot}) local de la cuenta restringida \texttt{nexus\_evidence}, tras lo cual se invoca la API para asociar la evidencia. Al distribuir el servicio, si una transferencia física por red se corta, o si el archivo se deposita en disco pero la llamada a la API falla o nunca se ejecuta, el sistema de archivos se colmaría de basura huérfana.
+        \item \textit{Desacople entre disco y base de datos:} Si el archivo se escribe pero la base de metadatos rechaza la inserción, o viceversa, se destruye la consistencia del servicio.
+        \item \textit{Patrón Staging y Promoción Atómica:} Se implementa una separación física estricta entre un directorio temporal (\texttt{/staging}) y el almacén definitivo (\texttt{/published}). Al recibir la petición de registro en la API con el hash provisto por el operador, Evidence Service calcula localmente la suma SHA-256 sobre el archivo en \texttt{staging}. Si el hash coincide y el Incident Service confirma la existencia del incidente, el archivo se transfiere a \texttt{published} mediante una llamada atómica a nivel de sistema de archivos (\texttt{rename(2)} dentro del mismo punto de montaje) y se confirma la transacción en la base de metadatos.
+        \item \textit{Recolección de basura (\textbf{Reconciliation Garbage Collector}):} Un temporizador periódico de \texttt{systemd} purga automáticamente aquellos archivos depositados en \texttt{staging} que superen un período de caducidad (por ejemplo, 12 horas) sin haber sido formalmente registrados en la API.
+        \item \textit{Preservación de SFTP:} El servidor OpenSSH con chroot se conserva como \textbf{infraestructura de transferencia segura y transporte perimetral}, depositando las cargas directamente en la zona de staging bajo permisos restringidos (\texttt{chmod 0640}).
+    \end{itemize}
+    \item \textbf{Infraestructura de Soporte Remanente:} OpenSSH con subsistema \texttt{internal-sftp}, puntos de montaje dedicados con cuotas de disco del kernel, permisos POSIX rigurosos, contextos SELinux adecuados para prevenir lecturas cruzadas y políticas de retención en copias de seguridad.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsubsection{Notification Service (Evolución del módulo \texttt{notifications})}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Responsabilidad y Límites:} Orquestación del despacho y entrega de comunicaciones críticas del distrito hacia canales externos (servidor de correo electrónico local/remoto, pasarelas SMS o webhooks de alerta temprana), registro histórico de intentos de envío y aplicación de políticas de reintento. \textit{Límite estricto:} \textbf{No evalúa las reglas de negocio sobre cuándo un incidente califica como crítico}; esa decisión pertenece exclusivamente al Incident Service. El Notification Service es un ejecutor desacoplado de solicitudes de entrega.
+    \item \textbf{Datos que Administraría en Exclusiva:} Tablas \texttt{notifications} y \texttt{delivery\_attempts} (identificador de mensaje, \texttt{incident\_id}, destinatario, asunto, cuerpo, estado: \texttt{queued}, \texttt{sent}, \texttt{failed}, recuento de intentos, marcas de tiempo del último intento y código de diagnóstico de salida del MTA).
+    \item \textbf{API que Expondría:}
+    \begin{itemize}[leftmargin=*]
+        \item \texttt{POST /api/v1/notifications} (ingesta sincrónica de solicitudes de notificación).
+        \item Consumidor asíncrono de eventos de dominio (\texttt{incident.critical\_created}).
+        \item \texttt{GET /api/v1/notifications/\{id\}/status} (inspección del estado de entrega y auditoría de reintentos).
+    \end{itemize}
+    \item \textbf{Dependencias de Otros Servicios:} No posee dependencias síncronas hacia otros servicios de negocio; consume eventos emitidos por Incident Service. Depende de la \textbf{infraestructura de red y transporte SMTP local} provista por el agente de transferencia de correo (MTA Postfix).
+    \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
+    \begin{itemize}[leftmargin=*]
+        \item \textit{Aceptación frente a Entrega Efectiva:} Responder con código \texttt{HTTP 202 Accepted} ante una solicitud de notificación únicamente certifica que la orden fue validada y persistida en la cola local de envíos del servicio. \textbf{No constituye garantía de que el mensaje haya arribado al buzón del destinatario final}. La entrega es inherentemente asíncrona y condicionada por la disponibilidad del servidor de correo.
+        \item \textit{Indisponibilidad de Postfix y mensajes duplicados:} Si Postfix está temporalmente detenido o la cola de spool del sistema operativo está saturada, Notification Service suspende los envíos y reprograma reintentos mediante un algoritmo de \textbf{retraso exponencial con dispersión (\textit{exponential backoff with jitter})}. Si un mensaje fue inyectado con éxito pero el proceso se interrumpió antes de asentar el estado \texttt{sent}, un reintento enviará un correo duplicado. Para mitigar molestias operativas, las alertas inyectan un identificador determinista en la cabecera estándar \texttt{Message-ID: <incident-\{id\}-\{timestamp\}@distrito9.local>}.
+        \item \textit{Imposibilidad Radical de Rollback en el Mundo Real:} En una base de datos distribuida, un fallo puede revertirse emitiendo sentencias de compensación. Sin embargo, un correo electrónico despachado por SMTP hacia un buzón local o hacia el exterior \textbf{no admite revocación ni rollback}: el efecto secundario en el mundo real ya se consumó. Por esta razón, el envío de notificaciones críticas jamás debe dispararse de forma preliminar o especulativa; debe ser invocado únicamente tras la confirmación atómica e irrevocable del incidente en la outbox de Incident Service.
+    \end{itemize}
+    \item \textbf{Infraestructura de Soporte Remanente:} Demonio Postfix con colas de correo activas (\texttt{spool}), buzones del sistema (\texttt{/var/mail/nexus}), supervisión de procesos mediante \texttt{systemd} y configuración de cortafuegos para permitir el tráfico SMTP local en el puerto 25 sin exposición perimetral.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsubsection{Audit Service (Evolución del módulo \texttt{audit})}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Responsabilidad y Límites:} Centralización, persistencia cronológica de tipo solo anexión (\textit{append-only}), indexación temporal y consulta forense estructurada de la totalidad de eventos de seguridad y mutaciones de estado emitidos por todos los servicios del distrito. \textit{Límite estricto:} \textbf{No debe interceptar de forma síncrona ni bloquear las transacciones de negocio} de los demás componentes. Una eventual caída o saturación del Audit Service jamás debe paralizar el registro de un incidente crítico en el distrito.
+    \item \textbf{Datos que Administraría en Exclusiva:} La tabla estructurada de eventos \texttt{audit\_events}, conteniendo los atributos esenciales: identificadores (\texttt{id}, \texttt{event\_id}, \texttt{correlation\_id}), contexto del emisor (\texttt{origin\_service}, \texttt{entity\_type}, \texttt{entity\_id}, \texttt{action}, \texttt{operator\_identity}), diferencias de estado (\texttt{payload\_diff}) y marcas temporales (\texttt{timestamp\_origin}, \texttt{timestamp\_ingestion}).
+    \item \textbf{API que Expondría:}
+    \begin{itemize}[leftmargin=*]
+        \item \texttt{POST /api/v1/audit/events} (ingesta masiva o unitaria de eventos de auditoría).
+        \item \texttt{GET /api/v1/audit/events} (consulta forense con filtros paramétricos por rango temporal, tipo de entidad, operador, servicio de origen o identificador de correlación).
+    \end{itemize}
+    \item \textbf{Dependencias de Otros Servicios:} Ninguna dependencia síncrona; actúa como consumidor y receptor terminal de trazas.
+    \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
+    \begin{itemize}[leftmargin=*]
+        \item \textit{Desfase de relojes (\textbf{Clock Skew}):} En un monolito, cada evento invoca la llamada al sistema \texttt{clock\_gettime(}\allowbreak\texttt{CLOCK\_REALTIME)} sobre el kernel de un único host físico. En un clúster distribuido, cada nodo o máquina virtual posee desviaciones temporales de cuarzo. Por lo tanto, \textbf{las marcas de tiempo locales (\textit{timestamps}) por sí solas no garantizan ni definen un orden causal global absoluto}.
+        \item \textit{Pérdida, duplicación y alteración de orden en red:} Las trazas emitidas por la red pueden adelantarse o duplicarse ante reintentos.
+        \item \textit{Estrategia de ordenamiento causal e idempotencia:}
+        \begin{itemize}[leftmargin=*]
+            \item Asignación obligatoria de un identificador universal de evento (\texttt{event\_id} UUIDv4) generado en el origen para descarte de duplicados mediante índices únicos en la ingesta.
+            \item Preservación de dos marcas de tiempo diferenciadas: \texttt{timestamp\_origin} (momento de ocurrencia en el nodo emisor) y \texttt{timestamp\_ingestion} (momento de persistencia física en el Audit Service).
+            \item Implementación de números de secuencia monótonos o \textbf{relojes lógicos de Lamport} por entidad para reconstruir inequívocamente la secuencia temporal de las mutaciones.
+            \item Adopción transversal de un identificador de correlación (\texttt{correlation\_id}), propagado en las cabeceras HTTP (\texttt{X-Correlation-ID}) para enlazar causalmente peticiones del usuario con sus efectos derivados.
+        \end{itemize}
+        \item \textit{Seguridad e Inmutabilidad Forense:} Es crucial enfatizar que la implementación actual sobre SQLite en un único archivo de base de datos \textbf{no ofrece garantías criptográficas de inmutabilidad}: cualquier usuario con privilegios de superusuario (\texttt{root}) o acceso directo al sistema de archivos podría modificar los registros históricos. Como propuesta para \textit{Sistemas Operativos II}, el Audit Service deberá estructurarse sobre volúmenes de disco montados con características \textbf{WORM} (\textit{Write Once, Read Many}) o implementar una estructura de \textbf{encadenamiento criptográfico} (donde cada evento incorpora el hash SHA-256 del registro precedente), garantizando la detección inmediata de cualquier adulteración retrospectiva.
+    \end{itemize}
+    \item \textbf{Infraestructura de Soporte Remanente:} Sincronización horaria rigurosa entre todos los nodos del clúster mediante demonios NTP/Chrony, almacenamiento en particiones con cuotas de disco aisladas para evitar la denegación de servicio del sistema operativo por saturación de registros, y políticas estrictas de respaldo forense.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsubsection{API Gateway (Evolución de Nginx)}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Responsabilidad y Límites:} Es el único punto de entrada perimetral expuesto hacia los clientes de red (\texttt{nexusctl}, estaciones de trabajo periféricas y operadores de campo). Gestiona la terminación TLS (HTTPS), el enrutamiento semántico de peticiones según prefijos de URL, el control de cadencia y límites de peticiones (\textit{rate limiting}), la compresión de respuestas y la recopilación de métricas de borde. \textit{Límite estricto:} \textbf{No contiene lógica de negocio de incidentes, no administra bases de datos de dominio ni valida directamente estados de entidades}.
+    \item \textbf{Datos que Administraría en Exclusiva:} Archivos de configuración declarativa del servidor proxy, certificados digitales X.509 y claves privadas de la entidad certificadora local, listas de control de acceso perimetral (ACLs) y zonas de memoria compartida del kernel para limitación de tráfico (\texttt{limit\_req\_zone}). \textbf{No administra ninguna tabla de negocio}.
+    \item \textbf{API que Expondría:} Publica el contrato exterior unificado de la API de NEXUS-9 sobre el puerto seguro estándar 443 (HTTPS), con redirección forzosa de peticiones HTTP en el puerto 80, realizando el encaminamiento inverso:
+    \begin{itemize}[leftmargin=*]
+        \item \texttt{/api/v1/units} y \texttt{/api/v1/operators} $\longrightarrow$ \texttt{Registry Service}
+        \item \texttt{/api/v1/incidents} $\longrightarrow$ \texttt{Incident Service}
+        \item \texttt{/api/v1/incidents/*/evidence} $\longrightarrow$ \texttt{Evidence Service}
+        \item \texttt{/api/v1/notifications} $\longrightarrow$ \texttt{Notification Service}
+        \item \texttt{/api/v1/audit} $\longrightarrow$ \texttt{Audit Service}
+        \item \texttt{/health} $\longrightarrow$ Agregador de salud del clúster
+    \end{itemize}
+    \item \textbf{Dependencias de Otros Servicios:} Depende de la conectividad y disponibilidad de red de cada uno de los microservicios desplegados en el clúster interno.
+    \item \textbf{Problemas al Distribuirlo y Estrategias de Abordaje:}
+    \begin{itemize}[leftmargin=*]
+        \item \textit{Indisponibilidad parcial de servicios internos:} Si uno de los servicios internos cae o se reinicia mientras los demás continúan operativos, el API Gateway debe traducir los fallos de red de la capa de transporte hacia códigos semánticos estándar del protocolo HTTP: \textbf{HTTP 502 Bad Gateway} si la conexión TCP es rechazada inmediatamente por el backend, \textbf{HTTP 504 Gateway Timeout} si el backend agota el tiempo de espera configurado (\texttt{proxy\_read\_timeout}) sin responder, o \textbf{HTTP 503 Service Unavailable} si se detecta un patrón de degradación grácil.
+        \item \textit{Peligro Crítico de Reintentos Automáticos de Escritura:} Una regla cardinal de diseño en redes distribuidas establece que \textbf{el API Gateway JAMÁS debe reintentar automáticamente peticiones de escritura no seguras ni no idempotentes} (\texttt{POST}, \texttt{PATCH}) tras recibir un \textit{timeout} de conexión o lectura. Si un cliente envía \texttt{POST /api/v1/incidents} y el temporizador del Gateway expira antes de recibir la confirmación del Incident Service, existe una probabilidad real de que el servicio interno haya creado con éxito el incidente y el fallo haya ocurrido exclusivamente en el retorno del paquete de red. Un reintento ciego por parte de Nginx inyectaría un segundo incidente idéntico en la base de datos. Los reintentos transparentes solo son seguros para operaciones idempotentes (\texttt{GET}, \texttt{HEAD}, \texttt{PUT}, \texttt{DELETE}) o cuando el cliente proporciona una cabecera de idempotencia verificada.
+        \item \textit{Evolución hacia autenticación centralizada y balanceo:} La centralización del control de acceso mediante validación perimetral de tokens (ej. JWT o mTLS de cliente) y el balanceo de carga distributivo (Round-Robin ponderado, conexiones mínimas) representan evoluciones naturales para Nginx en \textit{Sistemas Operativos II}, las cuales \textbf{no se encuentran implementadas ni deben asumirse activas} en el monolito actual.
+    \end{itemize}
+    \item \textbf{Infraestructura de Soporte Remanente:} Binario de Nginx compilado con soporte TLS, certificados digitales generados por la CA distrital de NEXUS-9, supervisión estricta mediante \texttt{systemd}, confinamiento con políticas de SELinux (\texttt{httpd\_t} con booleano \texttt{httpd\_can\_network\_connect} habilitado para el proxy inverso) y cortafuegos perimetral permitiendo únicamente los puertos 80 y 443 hacia el exterior.
+\end{enumerate}
+
+\subsection{Análisis Transversal de Desafíos en Sistemas Distribuidos}
+
+La descomposición de un sistema monolítico hacia servicios desacoplados traslada la complejidad desde las estructuras de datos en memoria y el compilador de C hacia la red y el sistema operativo. A continuación se sintetizan los principios técnicos transversales que gobernarán dicha arquitectura en \textit{Sistemas Operativos II}:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Pérdida de Claves Foráneas y Atomicidad Compartida:} En SQLite, una sentencia como \texttt{FOREIGN KEY (unit\_id) REFERENCES units(id)} es validada a costo cero por el motor transaccional dentro del mismo proceso. En microservicios con bases de datos segregadas por servicio, las claves foráneas a nivel de base de datos \textbf{dejan de existir}. Pasan a ser identificadores lógicos cuya validez debe ser verificada a través de llamadas de red o eventos, trasladando la responsabilidad de la coherencia a la capa de aplicación y a mecanismos de consistencia eventual.
+    \item \textbf{Consistencia Eventual y Estados Intermedios Visibles:} En un entorno desacoplado rige el Teorema CAP. Para preservar la disponibilidad del distrito ante fallos de enlaces, se renuncia a la consistencia inmediata estricta. Como consecuencia, pueden existir ventanas temporales donde un incidente ha sido creado y devuelto al cliente, pero su evento de auditoría aún no se refleja en la consulta forense o su alerta permanece encolada en el servicio de notificaciones. Los clientes deben diseñarse para tolerar estados intermedios.
+    \item \textbf{El Dilema del Resultado Incierto ante Timeouts:} En una llamada a función local en C, la operación concluye con éxito o falla con código de retorno. En una red TCP/IP, un tiempo de espera agotado (\textit{timeout}) no define el estado del servidor remoto: la petición pudo haberse perdido en el viaje de ida, haber sido ejecutada con éxito en el destino y haber fallado en la confirmación de vuelta, o permanecer todavía encolada. El cliente no puede asumir que la operación no ocurrió.
+    \item \textbf{Políticas de Reintento con Dispersión (\textit{Jitter}) y Deduplicación:} Ante fallos transitorios, los componentes deben reintentar la comunicación aplicando retraso exponencial con fluctuación aleatoria (\textit{jitter}) para evitar el colapso por resonancia conocido como tormenta de reconexión (\textit{thundering herd problem}). Todo receptor en red debe implementar deduplicación mediante claves de idempotencia.
+    \item \textbf{Contratos Estrictos y Versionado de Interfaces:} La comunicación entre módulos que previamente compartían archivos de cabecera en C (\texttt{.h}) pasa a depender de contratos de red serializados (JSON Schemas, Protobuf o especificaciones OpenAPI). Cualquier evolución en los esquemas de datos o en los eventos asíncronos debe respetar el \textit{Principio de Robustez de Postel} (ser conservador en lo que se envía y tolerante en lo que se recibe) y contemplar versionado explícito (\texttt{/api/v1/}, \texttt{/api/v2/}) para garantizar compatibilidad hacia atrás.
+    \item \textbf{Observabilidad Distribuida y Trazabilidad:} En un monolito, la depuración se realiza inspeccionando el espacio de memoria con \texttt{gdb} o analizando los registros unificados en \texttt{journald}. En microservicios, una única operación del usuario atraviesa múltiples saltos de red. Resulta indispensable inyectar un \textbf{identificador de correlación} (\texttt{X-Correlation-ID}) en el API Gateway y propagarlo obligatoriamente en cada llamada HTTP/gRPC y en cada evento de la outbox, acompañado de métricas estandarizadas y sondeos de salud (\textit{readiness} y \textit{liveness probes}) por cada servicio.
+    \item \textbf{Copias de Seguridad y Restauraciones Coordinadas:} En el monolito de \textit{Sistemas Operativos I}, la consistencia absoluta de un backup se resuelve simplemente copiando el archivo \texttt{nexus.db} bajo una transacción de SQLite y archivando el directorio de evidencias. En un esquema con múltiples bases de datos distribuidas, \textbf{restaurar la base de un solo servicio de forma aislada provocaría una corrupción lógica catastrófica en el clúster} (por ejemplo, revivir incidentes que apuntan a unidades eliminadas, o perder eventos que ya fueron notificados al exterior). Los procedimientos de recuperación en sistemas distribuidos exigen puntos de sincronización coordinados (\textit{distributed snapshots}), marcas de agua temporales coherentes o estrategias de reconstrucción basadas en el registro secuencial de eventos (\textit{Event Sourcing}).
+    \item \textbf{Seguridad Inter-Servicios en el Perímetro Interno:} Al migrar a procesos distribuidos, la red interna deja de considerarse confiable. Se requiere la adopción de \textbf{mTLS (TLS mutuo)} para autenticar criptográficamente la identidad de cada servicio emisor y cifrar el tráfico inter-nodo, gestión aislada de credenciales mediante secretos del sistema operativo y segmentación de cortafuegos en cada host.
+    \item \textbf{Infraestructura del Sistema Operativo que Permanece Indispensable:} La descomposición en microservicios no elimina la necesidad de la infraestructura del sistema operativo; por el contrario, la jerarquiza. Componentes fundamentales como \textbf{systemd} (supervisión, reinicio automático y gobernanza de cgroups v2), \textbf{Nginx} (borde perimetral y terminación TLS), \textbf{Postfix} (encolado y entrega SMTP), \textbf{OpenSSH} (servidor SFTP enjaulado), \textbf{journald / logrotate} (gestión y rotación de registros de auditoría) y los subsistemas de archivos locales continúan siendo el cimiento operativo esencial sobre el cual descansan los servicios distribuidos.
+    \item \textbf{Independencia Tecnológica: Elección de Motores de Persistencia y Brokers:} Debe subrayarse que la transición arquitectónica hacia servicios desacoplados \textbf{no exige abandonar de inmediato SQLite ni impone la instalación obligatoria de brokers pesados como Kafka o RabbitMQ}. En una primera fase evolutiva de \textit{Sistemas Operativos II}, cada servicio puede operar con total independencia sobre su propio archivo SQLite local debidamente segregado, y la mensajería asíncrona puede resolverse mediante técnicas nativas del sistema operativo (colas de mensajes POSIX, sockets UNIX locales o demonios ligeros de polling de outbox) antes de dar el salto hacia clústeres cliente-servidor externos.
+\end{itemize}
+
+\subsection{Matriz Comparativa de Componentes y Evolución Arquitectónica}
+
+En la Tabla~\ref{tab:microservicios_comparativa} se sintetizan las características esenciales que definen a cada componente en la arquitectura propuesta de microservicios.
 
 \begin{table}[H]
     \centering
-    \footnotesize
-    \caption{Mapeo de módulos internos de \texttt{nexusd} hacia microservicios autónomos en red.}
-    \label{tab:microservicios}
-    \begin{tabularx}{\textwidth}{llp{3.8cm}p{4.2cm}}
+    \scriptsize
+    \caption{Matriz comparativa de responsabilidades, datos y dependencias en la evolución hacia microservicios.}
+    \label{tab:microservicios_comparativa}
+    \begin{tabularx}{\textwidth}{l p{2.2cm} p{2.5cm} p{2.8cm} p{2.2cm} X}
         \toprule
         \rowcolor{tableheader}
-        \textbf{Módulo Actual} & \textbf{Servicio Futuro} & \textbf{Datos Administrados Exclusivos} & \textbf{Dependencias de Red Directas} \\
+        \textbf{Componente} & \textbf{Servicio Futuro} & \textbf{Datos Exclusivos} & \textbf{API Principal} & \textbf{Dependencias} & \textbf{Infraestructura OS} \\
         \midrule
-        \textbf{\texttt{registry}} & Registry Service & Catálogo de unidades y operadores habilitados. & Ninguna (servicio raíz de catálogo). \\
+        \textbf{\texttt{registry}} & Registry Service & Tablas \texttt{units} y \texttt{operators}. & \texttt{/api/v1/units}, \texttt{/api/v1/operators} & Ninguna (servicio raíz). & SQLite propio, systemd, cgroups, UFW/firewalld. \\
         \rowcolor{rowalt}
-        \textbf{\texttt{incidents}} & Incident Service & Estado, severidad y transiciones de incidentes. & Registry Service, Notification Service. \\
-        \textbf{\texttt{evidence}} & Evidence Service & Almacenamiento de binarios y sumas SHA-256. & Incident Service (validación de existencia de ID). \\
+        \textbf{\texttt{incidents}} & Incident Service & Tabla \texttt{incidents} y tabla \texttt{outbox\_events}. & \texttt{/api/v1/incidents}, transición \texttt{status} & Registry (síncrono); emite eventos. & SQLite propio, despachador outbox, systemd timer. \\
+        \textbf{\texttt{evidence}} & Evidence Service & Metadatos \texttt{evidence} y archivos en disco. & \texttt{/incidents/\{id\}/}\allowbreak\texttt{evidence}, descarga & Incident (síncrono, valida existencia). & OpenSSH (SFTP chroot), permisos POSIX, cuotas disco. \\
         \rowcolor{rowalt}
-        \textbf{\texttt{notifications}} & Notification Service & Cola de alertas y registro de envíos SMTP/Webhooks. & Ninguna (consume eventos de cola de mensajería). \\
-        \textbf{\texttt{audit}} & Audit Service & Trazas inmutables en base de datos tipo append-only. & Ninguna (ingesta desacoplada de eventos). \\
+        \textbf{\texttt{notifications}} & Notification Service & Tablas \texttt{notifications} e historial de intentos. & Ingesta POST, consumidor eventos críticos & Incident (asíncrono); Postfix MTA local. & Postfix spool, buzones del sistema, systemd timer. \\
+        \textbf{\texttt{audit}} & Audit Service & Tabla \texttt{audit\_events} append-only. & \texttt{POST /api/v1/audit}, consulta forense & Ninguna (receptor desacoplado). & Cron/NTP sincronizado, partición WORM, logrotate. \\
         \rowcolor{rowalt}
-        \textbf{\texttt{Nginx}} & API Gateway & Políticas de enrutamiento, mTLS, rate limiting y caché. & Todos los servicios del clúster. \\
+        \textbf{\texttt{Nginx}} & API Gateway & Configuración proxy, certificados X.509, ACLs. & Punto de entrada perimetral (HTTPS :443) & Todos los microservicios internos. & Nginx, OpenSSL/CA distrital, SELinux, cortafuegos. \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\subsection{Desafíos Sistémicos de la Distribución de Componentes}
+% ==============================================================================
+% SECCIÓN 11: CONCLUSIONES TÉCNICAS, ESTADO FINAL Y LÍMITES DEL SISTEMA
+% ==============================================================================
+\section{Conclusiones Técnicas, Estado Final y Límites del Sistema}
+\label{sec:conclusiones}
 
-La transición de llamadas a función locales en C hacia llamadas de red (\textit{Remote Procedure Calls}, RPC / gRPC / HTTP) introduce desafíos propios de los sistemas distribuidos que serán abordados formalmente en \textit{Sistemas Operativos II}:
+El desarrollo e integración integral del Capítulo 3 ha permitido transformar el prototipo modular de \textbf{NEXUS-9} en un sector operativo formal, protegido mediante defensas en profundidad, administrado por el sistema operativo y recuperable ante contingencias catastróficas.
 
+\subsection{Síntesis de Logros y Correcciones Técnicas Integradas}
+
+A lo largo de las ocho etapas de implementación y los escenarios obligatorios de contingencia, se consolidaron las siguientes capacidades clave del sistema:
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Latencia y Concurrencia de Red:} Lo que en memoria insume nanosegundos pasa a demorar milisegundos. Las peticiones concurrentes exigen multiplexación no bloqueante basada en epoll, colas de trabajo y pools de conexiones.
-    \item \textbf{Fallos Parciales y Particionamiento (\textit{Network Partitions}):} En un monolito, si el proceso vive, todos sus módulos están disponibles. En una red, el servicio de incidentes puede estar activo pero el servicio de notificaciones ser inalcanzable. Se requerirán patrones de resiliencia como \textbf{Circuit Breakers}, reintentos con retraso exponencial (*exponential backoff*) y degradación grácil.
-    \item \textbf{Pérdida de Transacciones ACID Locales:} En SQLite, asociar una evidencia a un incidente y registrar la auditoría ocurre en una única transacción atómica local (\texttt{BEGIN ... COMMIT}). En microservicios con bases de datos segregadas por servicio, las transacciones locales son inviables; debe implementarse el patrón de \textbf{Sagas} o transacciones compensatorias basadas en consistencia eventual.
-    \item \textbf{Idempotencia y Duplicación de Mensajes:} En una red, la falta de respuesta (*timeout*) no significa que la operación no se ejecutó; pudo fallar el paquete de retorno. Toda operación de API debe exigir identificadores de idempotencia (\textit{Idempotency Keys}) para que reenviar una petición no duplique un incidente o evidencia.
-    \item \textbf{Infraestructura Remanente:} Componentes como el almacenamiento de objetos masivo (ej. MinIO/S3 para evidencias), colas de mensajería (RabbitMQ/Kafka) y observabilidad distribuida (OpenTelemetry) continúan perteneciendo a la capa de infraestructura del sistema operativo y no deben ser reescritos dentro de la lógica de negocio.
+    \item \textbf{Seguridad y Defensa en Profundidad:} Se verificó el confinamiento estricto de la API en el lazo local (\texttt{127.0.0.1:8080}), obligando a que todo tráfico externo atraviese Nginx bajo HTTPS con cifrado TLS fuerte, con políticas restrictivas de cortafuegos (\texttt{ufw} en \texttt{sector-core} y \texttt{firewalld} en \texttt{field-terminal}), confinamiento de procesos mediante SELinux en modo estricto (\textit{Enforcing}) y aislamiento de cuentas sin privilegios administrativos ni acceso a intérpretes de comandos (\texttt{nexus\_evidence} bajo \texttt{/usr/sbin/nologin} y chroot SFTP).
+    \item \textbf{Preservación de Permisos de Evidencia en Restauración:} En el procedimiento de recuperación (\texttt{restore.sh}), se integró la corrección explícita para restituir no solo los binarios de evidencia y la base de datos, sino también la estructura estricta de propiedad y permisos POSIX (\texttt{chmod 0640}, \texttt{chown nexus:nexus}), previniendo fallos de lectura o escaladas accidentales tras una catástrofe.
+    \item \textbf{Completitud Operativa y Ejemplos de Registro:} Se completó el aprovisionamiento del perfil del operador en el catálogo y la documentación de ejemplos concretos de invocación con \texttt{curl} sobre HTTPS para el alta y consulta de unidades tácticas, sirviendo de referencia operativa para los scripts de integración.
+    \item \textbf{Resiliencia Defensiva de la Capa de Datos (EC-02):} Se implementó y verificó experimentalmente la tolerancia ante la indisponibilidad de la base de datos en \texttt{nexusd}. Ante el apartamiento o bloqueo del archivo SQLite, el demonio responde de forma homogénea con código semántico \textbf{HTTP 503 Service Unavailable} (\texttt{database\_unavailable}) en la totalidad de sus rutas, \textbf{sin terminar el proceso ni alterar su PID (1552)}, reanudando el servicio nominal de forma automática e inmediata al restaurarse la base.
+    \item \textbf{Diagnóstico y Observabilidad Ampliada:} La herramienta \texttt{diagnostics.sh} fue extendida para recolectar el consumo en tiempo real de CPU y memoria de los procesos críticos, marcas de tiempo de inicialización de los servicios del sistema operativo e inspección exhaustiva de denegaciones AVC recientes en los registros de auditoría de SELinux (\texttt{audit.log}).
+    \item \textbf{Aprovisionamiento Inicial y Cadena de Confianza:} El instalador del sector (\texttt{install-sector.sh}) incorpora de forma automática la clave pública de la Autoridad Certificante (CA) local en el almacén de certificados de confianza del sistema (\texttt{/usr/local/share/ca-certificates/}) y ejecuta un primer backup verificado de contingencia, garantizando que el sondeo de salud (\texttt{nexusctl health}) complete su ciclo de vida con código de retorno \texttt{0} desde el primer arranque.
 \end{itemize}
 
-% ==============================================================================
-% SECCIÓN 11: CONCLUSIONES
-% ==============================================================================
-\section{Conclusiones Técnicas y Lecciones Aprendidas}
+\subsection{Declaración Explícita de Límites Reales del Proyecto}
 
-El desarrollo integral del Capítulo 3 permitió consolidar la convergencia indispensable entre la programación de software de sistemas en C y las herramientas nativas de administración, seguridad y resiliencia que ofrece el sistema operativo Linux:
-\begin{itemize}[leftmargin=*]
-    \item Se demostró que la seguridad perimetral es un ejercicio de \textbf{defensa en profundidad}: el firewall filtra conexiones no autorizadas, Nginx valida y termina TLS, SELinux previene la escalada de privilegios a nivel de kernel, y los permisos de usuario segregan el acceso a datos.
-    \item La automatización del ciclo de vida mediante scripts rigurosos en Bash con control transaccional (\texttt{deploy.sh}, \texttt{backup.sh}, \texttt{restore.sh}) es lo que convierte a un prototipo experimental en una infraestructura reproducible, operable y recuperable por terceros.
-    \item El cliente nativo \texttt{nexusctl} ratificó la utilidad de bibliotecas de transporte robustas como \texttt{libcurl}, vinculando el trabajo de terminal con la supervisión de servicios críticos del distrito.
-\end{itemize}
+En estricta observancia de los criterios de rigor y transparencia técnica estipulados en la consigna de la cátedra, se establecen con claridad los límites y estados pendientes que caracterizan al cierre del presente informe:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Validación de Instalación en Entorno Controlado vs. Máquina Virtual Limpia:} Si bien el instalador automatizado \texttt{install-sector.sh} y sus scripts complementarios fueron corregidos, verificados exhaustivamente y depurados mediante baterías de pruebas y ensayos controlados en el entorno de desarrollo, \textbf{no se afirma ni debe asumirse que la primera instalación corregida haya sido ensayada integralmente sobre una máquina virtual completamente limpia desde cero}. Dicha validación sobre un entorno estéril representa una tarea de aseguramiento de calidad planificada para etapas de homologación posteriores.
+    \item \textbf{Validación Externa por Persona Ajena al Equipo (Issue \#86):} La prueba de aceptación final y auditoría de procedimientos operativos ejecutada por un operador o evaluador independiente ajeno al equipo de desarrollo (\textbf{Issue \#86}) \textbf{permanece como una actividad formalmente pendiente}. El sistema ha superado con éxito las pruebas integrales de caja blanca y caja negra ejecutadas internamente por los autores (como se demostró en la Sección~\ref{sec:integral}), pero el ensayo formal ciego por terceros constituirá el hito definitivo de entrega previa a la aprobación final.
+\end{enumerate}
+
+Las bases operativas, de seguridad, de persistencia y de automatización construidas en este Capítulo 3 fijan un cimiento sólido e ineludible para abordar, con pleno conocimiento de los mecanismos del núcleo de Linux, los desafíos concurrentes y distribuidos que demandará \textit{Sistemas Operativos II}.
 
 \end{document}
