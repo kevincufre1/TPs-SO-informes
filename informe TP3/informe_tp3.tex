@@ -884,13 +884,13 @@ En la Figura~\ref{fig:e7_incidents_close} y Figura~\ref{fig:e7_incidents_err} se
 \end{figure}
 
 % ==============================================================================
-% SECCIÓN 8: ETAPA 08 — DESPLIEGUE AUTOMATIZADO Y ROLLBACK
+% SECCIÓN 8: ETAPA 08 — DESPLIEGUE AUTOMATIZADO Y PRUEBA INTEGRAL
 % ==============================================================================
-\section{Etapa 08 — Despliegue Automatizado, Idempotencia y Rollback}
+\section{Etapa 08 — Despliegue Automatizado, Idempotencia y Prueba Integral}
 
-Para asegurar la reproducibilidad de la plataforma y evitar intervenciones manuales propensas a errores, se construyó el script de orquestación transaccional \textbf{\texttt{scripts/deploy.sh}}.
+Para asegurar la reproducibilidad de la plataforma y evitar intervenciones manuales propensas a errores, se construyó el script de orquestación transaccional \textbf{\texttt{scripts/deploy.sh}}. La validación culmina con el ensayo integral de 14 pasos que recorre de punta a punta la plataforma operativa.
 
-\subsection{Secuencia Transaccional de 11 Fases}
+\subsection{Secuencia Transaccional de 11 Fases de \texttt{deploy.sh}}
 
 \begin{enumerate}[leftmargin=*]
     \item \textbf{Validación de dependencias y permisos:} Comprueba privilegios de superusuario (\texttt{root}), espacio en disco y herramientas requeridas (\texttt{cmake}, \texttt{conan}, compiladores). Si faltan requisitos, aborta sin tocar el sistema.
@@ -910,7 +910,7 @@ Para asegurar la reproducibilidad de la plataforma y evitar intervenciones manua
 
 Un despliegue es \textbf{idempotente} si ejecutarlo múltiples veces consecutivas produce exactamente el mismo estado final estable que una sola ejecución. \texttt{deploy.sh} detecta si los binarios y archivos de configuración ya coinciden con la versión objetivo; en tal caso, no recompila innecesariamente, no pisa bases de datos ni duplica reglas, informando \textit{"sin cambios"}.
 
-\subsection{Evidencia Experimental de la Etapa 08}
+\subsection{Evidencias de la Automatización del Despliegue}
 
 En la Figura~\ref{fig:e8_prevalidacion} se exhibe la robustez de la prevalidación: ejecutar \texttt{deploy.sh} sin permisos de superusuario aborta de inmediato con \texttt{código 4}, y ejecutarlo ante dependencias ausentes en la caché local de Conan detiene el despliegue con \texttt{código 2} sin tocar la instalación.
 
@@ -939,10 +939,134 @@ En la Figura~\ref{fig:e8_rollback} se documenta el comportamiento de reversión 
     \label{fig:e8_rollback}
 \end{figure}
 
+\subsection{Recorrido Paso a Paso de la Prueba Integral (14 Pasos)}
+
+La evaluación final del sector siguió un guion estandarizado y reproducible ejecutado en tiempo real con ambos nodos interconectados. A continuación se presenta cada uno de los 14 pasos junto a su respectiva evidencia experimental ampliada:
+
+\subsubsection*{Paso 1 · Inicio de Sesión de Operador en Rocky Linux}
+La operación comienza en \texttt{field-terminal} iniciando sesión con el usuario estándar \texttt{operador} (UID 1001), carente de privilegios administrativos en \texttt{sudoers}. Esto valida que las herramientas de interacción y monitoreo de campo no requieren privilegios de \texttt{root} para su funcionamiento cotidiano.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P01_operador_sin_privilegios.png.jpeg}
+    \caption{Paso 1: Inicio de sesión interactiva con el usuario sin privilegios administrativos en \texttt{field-terminal}.}
+    \label{fig:int_p1}
+\end{figure}
+
+\subsubsection*{Paso 2 · Verificación de Salud Perimetral con \texttt{nexusctl}}
+El operador comprueba el estado global del sector mediante \texttt{nexusctl health}. El cliente en C realiza la petición HTTPS contra \texttt{https://sector-core/health}, validando el certificado mediante la CA de laboratorio instalada en el almacén de confianza del sistema, recibiendo la respuesta JSON y retornando con código de salida \texttt{0}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P02_health_https_codigo0.png.jpeg}
+    \caption{Paso 2: Comprobación de salud perimetral vía HTTPS con validación de certificado (código 0).}
+    \label{fig:int_p2}
+\end{figure}
+
+\subsubsection*{Paso 3 · Registro y Listado de Nueva Unidad Operativa}
+Se envía una solicitud de alta de unidad (\texttt{POST /api/v1/units}) y se comprueba la persistencia consultando el listado estructurado mediante \texttt{nexusctl units list}, verificando que la cadena completa de transporte, proxy Nginx, daemon \texttt{nexusd} y almacenamiento SQLite funciona coordinadamente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P03_creacion_unidad_y_listado.png.jpeg}
+    \caption{Paso 3: Creación de unidad operativa y listado de confirmación mediante \texttt{nexusctl units list}.}
+    \label{fig:int_p3}
+\end{figure}
+
+\subsubsection*{Paso 4 · Creación de Incidente Crítico}
+El operador registra un nuevo incidente asignando severidad \texttt{critical} (\texttt{nexusctl incidents create --unit 6 --operator 1 --severity critical --description "Ensayo integral: falla en ENSAYO-01"}). La API genera el identificador único (\texttt{ID: 11}) y programa la notificación correspondiente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P04_creacion_incidente_critico.png.jpeg}
+    \caption{Paso 4: Alta de incidente crítico disparando la cadena de alerta operativa con ID generado.}
+    \label{fig:int_p4}
+\end{figure}
+
+\subsubsection*{Pasos 5 y 6 · Carga SFTP Enjaulada y Asociación de Evidencia con SHA-256}
+Se ejecuta el script \texttt{upload-evidence.sh}: en el Paso 5, el archivo binario de evidencia se transfiere por SFTP autenticado con par de claves SSH hacia el directorio \texttt{/incoming} de la jaula chroot del usuario \texttt{nexus\_evidence}. En el Paso 6, el script calcula el hash SHA-256 del fichero y lo asocia formalmente al incidente vía API REST, validando concordancia criptográfica.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P05-P06_carga_y_registro_evidencia.png.jpeg}
+    \caption{Pasos 5 y 6: Transferencia SFTP enjaulada y registro de evidencia con verificación de suma SHA-256.}
+    \label{fig:int_p5_6}
+\end{figure}
+
+\subsubsection*{Paso 7 · Comprobación de Notificación Interna en Buzón Local}
+Se inspecciona el buzón de correo local \texttt{/var/mail/nexus-ops} en \texttt{sector-core}, confirmando que el subsistema Postfix confinado en loopback entregó efectivamente el mensaje de alerta derivado del incidente crítico registrado en el Paso 4.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P07_notificacion_buzon_local.png.jpeg}
+    \caption{Paso 7: Verificación de entrega de la notificación crítica en el buzón local \texttt{/var/mail/nexus-ops}.}
+    \label{fig:int_p7}
+\end{figure}
+
+\subsubsection*{Paso 8 · Trazabilidad de Eventos en la Tabla de Auditoría}
+Se realiza una consulta SQL directa sobre la base de datos en \texttt{sector-core} (\texttt{SELECT * FROM audit\_events;}), evidenciando que cada una de las operaciones previas (altas, autenticaciones, cargas y notificaciones) quedó asentada de forma inmutable con actor, acción, recurso, resultado y marca temporal.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P08_eventos_auditoria.png.jpeg}
+    \caption{Paso 8: Trazabilidad inmutable en la tabla \texttt{audit\_events} documentando las operaciones del sector.}
+    \label{fig:int_p8}
+\end{figure}
+
+\subsubsection*{Pasos 9 y 10 · Caída Forzada de \texttt{nexusd} (\texttt{kill -9}) y Recuperación por Systemd}
+En el Paso 9, se envía una señal letal \texttt{SIGKILL} al proceso principal de \texttt{nexusd}. En el Paso 10, se demuestra que el supervisor \texttt{systemd} detecta la interrupción anómala y aplica la directiva \texttt{Restart=on-failure}, reanudando el demonio en exactamente 2 segundos (\texttt{RestartSec=2s}) con un nuevo PID, sin requerir intervención humana.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P09-P10_caida_y_recuperacion_systemd.png.jpeg}
+    \caption{Pasos 9 y 10: Finalización abrupta (\texttt{kill -9}) y recuperación automática autónoma gobernada por Systemd.}
+    \label{fig:int_p9_10}
+\end{figure}
+
+\subsubsection*{Paso 11 · Generación de Backup Consistente con Manifiesto}
+Se ejecuta \texttt{scripts/backup.sh}, el cual realiza una copia en caliente consistente de la base SQLite utilizando la API de backup atómico (modo WAL), empaqueta el árbol de evidencias y genera un archivo de manifiesto criptográfico con sumas SHA-256.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P11_generacion_backup.png.jpeg}
+    \caption{Paso 11: Generación de respaldo consistente, empaquetado de evidencias y cálculo de sumas SHA-256.}
+    \label{fig:int_p11}
+\end{figure}
+
+\subsubsection*{Paso 12 · Pérdida Real de Información (Destrucción Controlada)}
+Para simular un incidente catastrófico en almacenamiento, se eliminan intencionalmente el archivo de base de datos \texttt{nexus.db} y los directorios físicos de evidencia. Las consultas inmediatas a la API confirman la pérdida de servicio.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P12_perdida_informacion.png.jpeg}
+    \caption{Paso 12: Simulación de catástrofe eliminando deliberadamente la base SQLite y los archivos de evidencia.}
+    \label{fig:int_p12}
+\end{figure}
+
+\subsubsection*{Paso 13 · Restauración Íntegra con Validación de Integridad}
+Se invoca \texttt{scripts/restore.sh} apuntando al snapshot generado en el Paso 11. El script valida la integridad de cada archivo contra el manifiesto SHA-256 antes de transferir datos, restaura la base SQLite y reconstruye el árbol de evidencias con los permisos correctos.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P13_restauracion_integridad.png.jpeg}
+    \caption{Paso 13: Restauración completa de la plataforma con verificación previa de integridad criptográfica.}
+    \label{fig:int_p13}
+\end{figure}
+
+\subsubsection*{Paso 14 · Verificación Final del Sector con \texttt{nexusctl}}
+Desde \texttt{field-terminal}, el operador consulta nuevamente los endpoints de unidades e incidentes con \texttt{nexusctl}. Se corrobora fehacientemente que la unidad creada en el Paso 3 y el incidente crítico del Paso 4 persisten sin alteración, certificando el éxito total del circuito.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.94\textwidth]{images/INTEGRAL_I90_P14_verificacion_datos_recuperados.png.jpeg}
+    \caption{Paso 14: Verificación final de consistencia constatando la recuperación íntegra de entidades operativas.}
+    \label{fig:int_p14}
+\end{figure}
+
 % ==============================================================================
-% SECCIÓN 9: ESCENARIOS DE FALLA OBLIGATORIOS Y PRUEBA INTEGRAL
+% SECCIÓN 9: ESCENARIOS DE FALLA OBLIGATORIOS
 % ==============================================================================
-\section{Escenarios de Falla Obligatorios y Validación de la Prueba Integral}
+\section{Escenarios de Falla Obligatorios}
 
 El sistema fue diseñado y evaluado bajo condiciones adversas, demostrando la capacidad de supervivencia y diagnóstico autónomo ante los tres escenarios de contingencia obligatorios fijados por la cátedra.
 
@@ -950,129 +1074,12 @@ El sistema fue diseñado y evaluado bajo condiciones adversas, demostrando la ca
 
 \begin{enumerate}[leftmargin=*]
     \item \textbf{Falla 1 · Proceso Terminado Abruptamente (\texttt{kill -9}):}
-    Se emitió una señal no interceptable \texttt{SIGKILL} al proceso de \texttt{nexusd}. El kernel finalizó el proceso de inmediato. El supervisor \texttt{systemd} detectó la pérdida del PID principal, esperó el tiempo de gracia (\texttt{RestartSec=2s}) y reanudó automáticamente el servicio con un nuevo PID, registrando el evento en journald con \texttt{code=killed, status=9/KILL} (documentado experimentalmente en la Figura~\ref{fig:e4_recuperacion}).
+    Se emitió una señal no interceptable \texttt{SIGKILL} al proceso de \texttt{nexusd}. El kernel finalizó el proceso de inmediato. El supervisor \texttt{systemd} detectó la pérdida del PID principal, esperó el tiempo de gracia (\texttt{RestartSec=2s}) y reanudó automáticamente el servicio con un nuevo PID, registrando el evento en journald con \texttt{code=killed, status=9/KILL} (documentado experimentalmente en la Figura~\ref{fig:e4_recuperacion} y en los Pasos 9 y 10 de la prueba integral).
     \item \textbf{Falla 2 · Base de Datos No Disponible (EC-02):}
     Al interrumpirse el acceso al archivo SQLite de forma imprevista mientras el demonio sigue en ejecución, \texttt{nexusd} atrapa la condición de fallo sin abortar el proceso. Emite respuestas HTTP semánticas \texttt{503 Service Unavailable} (\texttt{database\_unavailable}) en todos los endpoints que dependen del almacenamiento (no únicamente en \texttt{/health}), y al restablecerse el acceso reanuda el servicio con código 200 conservando el mismo PID (documentado experimentalmente en la Figura~\ref{fig:falla2_db}).
     \item \textbf{Falla 3 · Pérdida Catastrófica de Información:}
-    Se eliminó intencionalmente el archivo de base de datos \texttt{nexus.db} y los archivos físicos de evidencia. Siguiendo el procedimiento documentado, se ejecutó \texttt{restore.sh} recuperando la totalidad de unidades, operadores, incidentes y sumas de control desde el último backup consistente (documentado en la Figura~\ref{fig:e5_restauracion}).
+    Se eliminó intencionalmente el archivo de base de datos \texttt{nexus.db} y los archivos físicos de evidencia. Siguiendo el procedimiento documentado, se ejecutó \texttt{restore.sh} recuperando la totalidad de unidades, operadores, incidentes y sumas de control desde el último backup consistente (documentado en la Figura~\ref{fig:e5_restauracion} y en los Pasos 11 al 13).
 \end{enumerate}
-
-\subsection{Recorrido y Evidencia Experimental de la Prueba Integral (14 Pasos)}
-
-Durante la evaluación final en tiempo real, se ejecutó el circuito integral entre ambos nodos:
-\begin{enumerate}
-    \item \textbf{Paso 1 · Inicio de sesión de operador en Rocky Linux:} Con usuario no privilegiado (\texttt{kevin}), operando como usuario real de campo.
-    \item \textbf{Paso 2 · Verificación de salud perimetral:} Mediante \texttt{nexusctl health} vía HTTPS contra \texttt{sector-core} validando la CA del laboratorio (código 0).
-    \item \textbf{Paso 3 · Registro y listado de nueva unidad operativa:} Alta de unidad y comprobación de persistencia con \texttt{nexusctl units list}.
-    \item \textbf{Paso 4 · Creación de incidente crítico:} Registro de incidente con severidad \texttt{critical} para disparar la notificación operativa.
-    \item \textbf{Pasos 5 y 6 · Carga SFTP y registro de evidencia:} Transferencia con el usuario enjaulado \texttt{nexus\_evidence} y asociación con hash SHA-256 vía API.
-    \item \textbf{Paso 7 · Comprobación de notificación interna:} Lectura del correo operativo en \texttt{/var/mail/nexus-ops}.
-    \item \textbf{Paso 8 · Trazabilidad en auditoría:} Inspección de eventos inmutables en la tabla \texttt{audit\_events}.
-    \item \textbf{Pasos 9 y 10 · Caída forzada y recuperación por systemd:} Ejecución de \texttt{kill -9} sobre \texttt{nexusd} y reinicio automático en 2 segundos.
-    \item \textbf{Paso 11 · Generación de backup verificado:} Respaldo consistente con \texttt{backup.sh} y validación de manifiesto.
-    \item \textbf{Paso 12 · Pérdida real de información:} Eliminación deliberada de \texttt{nexus.db} y evidencias físicas.
-    \item \textbf{Paso 13 · Restauración íntegra:} Recuperación completa mediante \texttt{restore.sh}.
-    \item \textbf{Paso 14 · Verificación final del sector:} Consulta con \texttt{nexusctl} constatando que todas las unidades, incidentes y evidencias creadas al inicio siguen existiendo.
-\end{enumerate}
-
-\begin{figure}[H]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P01_operador_sin_privilegios.png.jpeg}
-        \caption{Paso 1: Sesión no privilegiada en \texttt{field-terminal}.}
-        \label{fig:int_p1}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P02_health_https_codigo0.png.jpeg}
-        \caption{Paso 2: \texttt{nexusctl health} HTTPS (código 0).}
-        \label{fig:int_p2}
-    \end{subfigure}
-    \\[0.15cm]
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P03_creacion_unidad_y_listado.png.jpeg}
-        \caption{Paso 3: Alta y listado de unidad operativa.}
-        \label{fig:int_p3}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P04_creacion_incidente_critico.png.jpeg}
-        \caption{Paso 4: Alta de incidente con severidad crítica.}
-        \label{fig:int_p4}
-    \end{subfigure}
-    \caption{Prueba Integral (Pasos 1 al 4): Operación de campo remota contra la API pública.}
-    \label{fig:integral_pt1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P05-P06_carga_y_registro_evidencia.png.jpeg}
-        \caption{Pasos 5-6: Carga SFTP y registro SHA-256.}
-        \label{fig:int_p5_6}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P07_notificacion_buzon_local.png.jpeg}
-        \caption{Paso 7: Notificación local en buzón operativo.}
-        \label{fig:int_p7}
-    \end{subfigure}
-    \\[0.15cm]
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P08_eventos_auditoria.png.jpeg}
-        \caption{Paso 8: Trazas inmutables en auditoría.}
-        \label{fig:int_p8}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P09-P10_caida_y_recuperacion_systemd.png.jpeg}
-        \caption{Pasos 9-10: Caída forzada y reinicio en 2s.}
-        \label{fig:int_p9_10}
-    \end{subfigure}
-    \caption{Prueba Integral (Pasos 5 al 10): Evidencias, alertas locales, auditoría y resiliencia.}
-    \label{fig:integral_pt2}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P11_generacion_backup.png.jpeg}
-        \caption{Paso 11: Respaldo consistente y manifiesto.}
-        \label{fig:int_p11}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P12_perdida_informacion.png.jpeg}
-        \caption{Paso 12: Eliminación forzada de SQLite.}
-        \label{fig:int_p12}
-    \end{subfigure}
-    \\[0.15cm]
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P13_restauracion_integridad.png.jpeg}
-        \caption{Paso 13: Restauración íntegra con \texttt{restore.sh}.}
-        \label{fig:int_p13}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/INTEGRAL_I90_P14_verificacion_datos_recuperados.png.jpeg}
-        \caption{Paso 14: Verificación final de datos recuperados.}
-        \label{fig:int_p14}
-    \end{subfigure}
-    \caption{Prueba Integral (Pasos 11 al 14): Respaldo, pérdida provocada y recuperación exitosa.}
-    \label{fig:integral_pt3}
-\end{figure}
 
 \subsection{Evidencia Experimental: Falla 2 · Base de Datos No Disponible (EC-02)}
 
