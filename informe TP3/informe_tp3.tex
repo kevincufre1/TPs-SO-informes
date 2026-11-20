@@ -548,14 +548,25 @@ En la Figura~\ref{fig:e3_notificacion} se verifica la creación de un incidente 
     \label{fig:e3_notificacion}
 \end{figure}
 
-\begin{capturafaltante}{Rechazo de Shell y Enjaulamiento de nexus\_evidence}{E3\_I31\_01\_sftp\_restringido.png}
-    \textbf{Archivo requerido:} \texttt{images/E3\_I31\_01\_sftp\_restringido.png}\\
-    \textbf{Descripción:} Captura de terminal demostrando que la cuenta \texttt{nexus\_evidence} no tiene shell interactiva:\\
-    \texttt{\$ ssh -i \textasciitilde/.ssh/nexus\_evidence nexus\_evidence@sector-core}\\[0.1cm]
-    \textbf{Qué debe mostrar:} Rechazo inmediato de conexión interactiva (\texttt{This service allows sftp connections only} o cierre inmediato de sesión con código distinto de 0).\\
-    \textit{Línea para descomentar cuando se agregue la captura:}
-    % \includegraphics[width=0.88\textwidth]{images/E3_I31_01_sftp_restringido.png}
-\end{capturafaltante}
+En la Figura~\ref{fig:e3_ssh_rechazo} y Figura~\ref{fig:e3_sftp_chroot} se documentan las pruebas de seguridad negativas aplicadas a la cuenta \texttt{nexus\_evidence} desde \texttt{field-terminal}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Rechazo de Shell y Comandos Remotos (Figura~\ref{fig:e3_ssh_rechazo}):} El intento de apertura de sesión interactiva SSH (\texttt{ssh -i \textasciitilde/.ssh/nexus\_evidence nexus\_evidence@sector-core}) o la ejecución remota de binarios (\texttt{... nexus\_evidence@sector-core id}) es abortado inmediatamente por el subsistema OpenSSH emitiendo el mensaje \texttt{"This service allows sftp connections only."} y cerrando la conexión.
+    \item \textbf{Aislamiento Chroot (Figura~\ref{fig:e3_sftp_chroot}):} Al iniciar sesión SFTP legítima, el entorno queda confinado en su raíz virtual: \texttt{ls /} exhibe de forma exclusiva la carpeta de subida autorizada (\texttt{/incoming}), intentos de navegación transversal (\texttt{cd /etc}) devuelven \texttt{No such file or directory}, y cualquier tentativa de escribir fuera de la jaula (\texttt{put ... /hostname}) es rechazada con \texttt{Permission denied}.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E3_I31_01_ssh_no_shell.png}
+    \caption{Pruebas negativas de acceso: rechazo taxativo de shell interactiva y comandos remotos en OpenSSH.}
+    \label{fig:e3_ssh_rechazo}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E3_I31_02_sftp_chroot_incoming.png}
+    \caption{Confinamiento Chroot de SFTP: visibilidad restringida y denegación de escritura fuera de \texttt{/incoming}.}
+    \label{fig:e3_sftp_chroot}
+\end{figure}
 
 % ==============================================================================
 % SECCIÓN 4: ETAPA 04 — RESILIENCIA, GOBERNANZA DE RECURSOS Y LOGS
@@ -622,14 +633,25 @@ En la Figura~\ref{fig:e4_logrotate} se exhibe la ejecución de rotación forzada
     \label{fig:e4_logrotate}
 \end{figure}
 
-\begin{capturafaltante}{Inspección de Límites de Recursos en Systemd}{E4\_I40\_01\_limites\_systemd.png}
-    \textbf{Archivo requerido:} \texttt{images/E4\_I40\_01\_limites\_systemd.png}\\
-    \textbf{Descripción:} Captura de terminal ejecutando en \texttt{sector-core}:\\
-    \texttt{\$ systemctl show nexus.service -p MemoryHigh -p MemoryMax -p CPUQuotaPerSecUSec -p TasksMax -p ProtectSystem -p ReadWritePaths}\\[0.1cm]
-    \textbf{Qué debe mostrar:} Los valores efectivos aplicados en el cgroup (\texttt{MemoryHigh=67108864}, \texttt{MemoryMax=100663296}, \texttt{CPUQuotaPerSecUSec=500ms}, \texttt{TasksMax=64}, etc.).\\
-    \textit{Línea para descomentar cuando se agregue la captura:}
-    % \includegraphics[width=0.88\textwidth]{images/E4_I40_01_limites_systemd.png}
-\end{capturafaltante}
+En la Figura~\ref{fig:e4_limites_mem} y Figura~\ref{fig:e4_limites_cpu} se constata la inspección en vivo de los controladores de recursos cgroups v2 aplicados sobre \texttt{nexus.service} mediante \texttt{systemctl show}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Límites de Memoria (Figura~\ref{fig:e4_limites_mem}):} Se corrobora \texttt{MemoryHigh=67108864} (64 MiB como umbral de contención) y \texttt{MemoryMax=100663296} (96 MiB como techo absoluto antes de activación del OOM Killer defensivo).
+    \item \textbf{Límites de CPU y Tareas (Figura~\ref{fig:e4_limites_cpu}):} Se verifica \texttt{CPUQuotaPerSecUSec=500ms} (equivalente a una cuota estricta del 50\% de un núcleo de procesamiento) y \texttt{TasksMax=64} (techo máximo de hilos/procesos concurrentes para prevenir bifurcaciones incontroladas).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/E4_I38_01_limites_memoria.png}
+    \caption{Gobernanza de memoria en Systemd: inspección de \texttt{MemoryHigh} (64 MB) y \texttt{MemoryMax} (96 MB).}
+    \label{fig:e4_limites_mem}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/E4_I39_02_limites_cpu_tareas.png}
+    \caption{Límites de procesamiento en Systemd: cuota de CPU (\texttt{500ms}) y límite de concurrencia (\texttt{TasksMax=64}).}
+    \label{fig:e4_limites_cpu}
+\end{figure}
 
 % ==============================================================================
 % SECCIÓN 5: ETAPA 05 — BACKUPS Y RESTAURACIÓN
@@ -705,14 +727,18 @@ En la Figura~\ref{fig:e5_restauracion} se documenta la prueba de recuperación a
     \label{fig:e5_restauracion}
 \end{figure}
 
-\begin{capturafaltante}{Estado de Temporizador de Backups (nexus-backup.timer)}{E5\_I53\_01\_timer\_backup.png}
-    \textbf{Archivo requerido:} \texttt{images/E5\_I53\_01\_timer\_backup.png}\\
-    \textbf{Descripción:} Captura de terminal ejecutando en \texttt{sector-core}:\\
-    \texttt{\$ systemctl list-timers --all nexus-backup.timer; systemctl is-enabled nexus-backup.timer}\\[0.1cm]
-    \textbf{Qué debe mostrar:} El temporizador en estado \texttt{enabled}, indicando fecha/hora de la última ejecución y el próximo disparo programado.\\
-    \textit{Línea para descomentar cuando se agregue la captura:}
-    % \includegraphics[width=0.88\textwidth]{images/E5_I53_01_timer_backup.png}
-\end{capturafaltante}
+En la Figura~\ref{fig:e5_timer} se corrobora el aprovisionamiento y funcionamiento del temporizador automatizado \texttt{nexus-backup.timer}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Programación temporal y estado activo:} La unidad se encuentra en estado \texttt{enabled} y \texttt{active}. El comando \texttt{systemctl list-timers} confirma la correspondencia con \texttt{nexus-backup.service}, reportando la próxima ejecución programada a las 03:00:00 UTC con el retraso aleatorio configurado.
+    \item \textbf{Directivas de resiliencia:} La inspección mediante \texttt{systemctl show} certifica la persistencia operativa ante eventuales apagados de la máquina virtual (\texttt{Persistent=yes}) y la aplicación del mecanismo de dispersión de carga (\texttt{RandomizedDelayUSec=15min}).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/E5_I54_01_backup_timer.png}
+    \caption{Estado activo y programación del temporizador \texttt{nexus-backup.timer} con persistencia y retraso aleatorio.}
+    \label{fig:e5_timer}
+\end{figure}
 
 % ==============================================================================
 % SECCIÓN 6: ETAPA 06 — OBSERVABILIDAD Y DIAGNÓSTICO
