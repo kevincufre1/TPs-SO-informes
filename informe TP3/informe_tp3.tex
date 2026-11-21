@@ -1349,62 +1349,78 @@ En la Figura~\ref{fig:arquitectura_so2} se ilustra la descomposición proyectada
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[
-        node distance=0.6cm and 0.5cm,
-        scale=0.82, transform shape,
-        box/.style={rectangle, draw=uncblue!90, fill=boxbg, rounded corners=2pt, minimum width=2.5cm, minimum height=0.9cm, align=center, font=\scriptsize\bfseries, line width=0.8pt},
-        gwbox/.style={rectangle, draw=primary, fill=uncblue!12, rounded corners=3pt, minimum width=13.0cm, minimum height=0.85cm, align=center, font=\footnotesize\bfseries, line width=1pt},
-        actorbox/.style={rectangle, draw=darkslate!80, fill=darkslate!10, rounded corners=2pt, minimum width=3.8cm, minimum height=0.8cm, align=center, font=\scriptsize\bfseries, line width=0.8pt},
-        busbox/.style={rectangle, draw=accentteal!90, fill=accentteal!15, rounded corners=2pt, minimum width=6.2cm, minimum height=0.75cm, align=center, font=\scriptsize\bfseries, line width=0.9pt},
-        infrabox/.style={rectangle, draw=darkslate!40, fill=darkslate!6, dashed, rounded corners=4pt, line width=0.6pt},
-        arrow/.style={-{Stealth[scale=0.85]}, draw=uncblue!90, line width=0.8pt},
-        eventarrow/.style={-{Stealth[scale=0.85]}, draw=accentteal!90, dashed, line width=0.85pt},
-        sftparrow/.style={-{Stealth[scale=0.85]}, draw=primary, dotted, line width=1pt}
+        scale=0.92, transform shape,
+        box/.style={rectangle, draw=uncblue!90, fill=boxbg, rounded corners=3pt, minimum width=2.7cm, text width=2.5cm, minimum height=1.25cm, align=center, font=\scriptsize, line width=0.85pt},
+        gwbox/.style={rectangle, draw=primary, fill=uncblue!10, rounded corners=3pt, minimum width=15.1cm, text width=14.9cm, minimum height=0.95cm, align=center, font=\footnotesize, line width=1pt},
+        actorbox/.style={rectangle, draw=darkslate!80, fill=darkslate!10, rounded corners=3pt, minimum width=4.6cm, text width=4.4cm, minimum height=0.95cm, align=center, font=\scriptsize, line width=0.85pt},
+        busbox/.style={rectangle, draw=accentteal!90, fill=accentteal!12, rounded corners=3pt, minimum width=8.6cm, text width=8.4cm, minimum height=0.85cm, align=center, font=\scriptsize, line width=0.9pt},
+        infrabox/.style={rectangle, draw=darkslate!40, fill=darkslate!5, dashed, rounded corners=6pt, line width=0.7pt},
+        arrow/.style={-{Stealth[scale=0.85]}, draw=uncblue!90, line width=0.85pt},
+        eventarrow/.style={-{Stealth[scale=0.85]}, draw=accentteal!90, dashed, line width=0.9pt},
+        sftparrow/.style={-{Stealth[scale=0.85]}, draw=primary, dotted, line width=1.1pt}
     ]
-    % Field terminal
-    \node[actorbox] (terminal) at (0, 3.8) {\texttt{field-terminal} (Rocky Linux)\\Operador no privilegiado · \texttt{nexusctl}};
+    % 1. Field Terminal (Cliente externo en Rocky Linux)
+    \node[actorbox] (terminal) at (0, 4.4) {\textbf{\texttt{field-terminal}} (Rocky Linux 10.2)\\[1pt]\scriptsize Operador sin privilegios $\cdot$ \texttt{nexusctl} / cliente SFTP};
+
+    % 2. API Gateway (Nginx Evolucionado)
+    \node[gwbox] (gateway) at (0, 2.7) {\textbf{API Gateway (Nginx Evolucionado)}\\[2pt]\scriptsize Terminación TLS (HTTPS :443) $\cdot$ Reverse Proxy $\cdot$ Rate Limiting $\cdot$ Enrutamiento y Mapeo Semántico};
+
+    % 3. Core Microservices (5 servicios distribuidos)
+    \node[box] (registry)     at (-6.2, 0.8) {\textbf{Registry Service}\\[2pt]\scriptsize Catálogo Unidades\\y Operadores};
+    \node[box] (incident)     at (-3.1, 0.8) {\textbf{Incident Service}\\[2pt]\scriptsize Ciclo de Vida y\\Outbox Transacc.};
+    \node[box] (evidence)     at ( 0.0, 0.8) {\textbf{Evidence Service}\\[2pt]\scriptsize Metadatos y Files\\Staging $\rightarrow$ Publ.};
+    \node[box] (notification) at ( 3.1, 0.8) {\textbf{Notification Service}\\[2pt]\scriptsize Cola de Despacho\\y Reintentos};
+    \node[box] (audit)        at ( 6.2, 0.8) {\textbf{Audit Service}\\[2pt]\scriptsize Ingesta Inmutable\\Append-Only};
+
+    % 4. Event Bus / Outbox Asíncrono (Debajo de Incident, Evidence, Notification y Audit)
+    \node[busbox] (bus) at (2.4, -0.8) {\textbf{Canal de Eventos Asíncronos / Transactional Outbox}\\[1pt]\tiny\texttt{incident.critical\_created} $\cdot$ \texttt{incident.status\_changed} $\cdot$ \texttt{evidence.registered}};
+
+    % 5. Infraestructura SFTP (Izquierda) y Postfix MTA (Derecha)
+    \node[actorbox] (sftp) at (-5.0, -2.2) {\textbf{OpenSSH / SFTP Server}\\[1pt]\tiny Cuenta en chroot (\texttt{nexus\_evidence})\\Directorio \path{/srv/nexus-sftp}};
     
-    % Gateway
-    \node[gwbox] (gateway) at (0, 2.3) {API Gateway (Nginx Evolucionado)\\Terminación TLS (HTTPS :443) $\cdot$ Reverse Proxy $\cdot$ Rate Limiting $\cdot$ Mapeo de Rutas Semánticas};
+    \node[actorbox] (postfix) at (4.6, -2.2) {\textbf{Postfix MTA Local}\\[1pt]\tiny Buzón spool en disco\\Directorio \path{/var/mail/nexus-ops}};
 
-    % Services layer
-    \node[box] (registry) at (-5.2, 0.4) {Registry Service\\Catálogo Unidades\\y Operadores};
-    \node[box] (incident) at (-2.6, 0.4) {Incident Service\\Ciclo de Vida y\\Outbox Transaccional};
-    \node[box] (evidence) at (0.0, 0.4) {Evidence Service\\Metadatos y Archivos\\Staging $\rightarrow$ Published};
-    \node[box] (notification) at (2.6, 0.4) {Notification Service\\Cola de Envíos\\MTA Local (Postfix)};
-    \node[box] (audit) at (5.2, 0.4) {Audit Service\\Ingesta Inmutable\\Append-Only};
+    % Conexiones Cliente -> Gateway / SFTP
+    \draw[arrow] (terminal) -- node[right, font=\tiny\bfseries\color{primary}] {HTTPS (:443)} (gateway);
+    
+    % Flujo SFTP perimetral: bypass externo limpio hacia OpenSSH sin tocar el Gateway
+    \draw[sftparrow] (terminal.west) to[out=180, in=90] (-8.1, 2.7) to[out=270, in=170] 
+        node[left, font=\tiny\bfseries\color{primary}, align=right] {SFTP (:22)\\Carga directa} (sftp.west);
 
-    % Event Bus / Outbox dispatcher
-    \node[busbox] (bus) at (1.3, -1.2) {Canal de Eventos Asíncronos / Transactional Outbox\\(\texttt{incident.critical\_created}, \texttt{incident.status\_changed})};
-
-    % External transfers / Infrastructure
-    \node[actorbox] (sftp) at (-4.2, -1.2) {OpenSSH / SFTP Server\\Cuenta restringida en chroot\\(\texttt{nexus\_evidence})};
-
-    % External Postfix
-    \node[actorbox] (postfix) at (4.8, -1.2) {Postfix MTA\\Buzón local / spool\\(\texttt{/var/mail/nexus})};
-
-    % Arrows from terminal to Gateway
-    \draw[arrow] (terminal) -- node[right, font=\tiny\bfseries] {HTTPS (443)} (gateway);
-    \draw[sftparrow] (terminal.west) to[out=190, in=150] node[left, font=\tiny\bfseries] {SFTP (22)} (sftp.west);
-
-    % Arrows from Gateway to Services
-    \draw[arrow] (gateway.south -| registry.north) -- (registry.north);
-    \draw[arrow] (gateway.south -| incident.north) -- (incident.north);
-    \draw[arrow] (gateway.south -| evidence.north) -- (evidence.north);
+    % Gateway -> Microservicios (5 flechas verticales sin cruces)
+    \draw[arrow] (gateway.south -| registry.north)     -- (registry.north);
+    \draw[arrow] (gateway.south -| incident.north)     -- (incident.north);
+    \draw[arrow] (gateway.south -| evidence.north)     -- (evidence.north);
     \draw[arrow] (gateway.south -| notification.north) -- (notification.north);
-    \draw[arrow] (gateway.south -| audit.north) -- (audit.north);
+    \draw[arrow] (gateway.south -| audit.north)        -- (audit.north);
 
-    % Cross-service dependencies
-    \draw[arrow, uncblue!70] (incident) -- node[above, font=\tiny] {validar unit} (registry);
-    \draw[eventarrow] (incident.south) to[out=270, in=180] (bus.west);
-    \draw[eventarrow] (bus.north -| notification.south) -- (notification.south);
-    \draw[eventarrow] (bus.east) to[out=0, in=270] (audit.south);
-    \draw[arrow, uncblue!70] (evidence) -- node[above, font=\tiny] {validar ID} (incident);
-    \draw[sftparrow] (sftp) -- node[below, font=\tiny] {staging dir} (evidence.south -| sftp);
-    \draw[arrow, darkslate] (notification) -- (postfix);
+    % Dependencias síncronas entre microservicios (arcos superiores en el espacio despejado)
+    \draw[arrow, uncblue!85] (incident.north) to[bend right=22] 
+        node[above, font=\tiny\bfseries\color{uncblue!90}] {1. Valida Unit / Op (HTTP)} (registry.north);
+    \draw[arrow, uncblue!85] (evidence.north) to[bend right=22] 
+        node[above, font=\tiny\bfseries\color{uncblue!90}] {2. Valida Incident ID (HTTP)} (incident.north);
 
-    % Background OS infrastructure box
+    % Event Bus: Publicación Outbox y Consumo Asíncrono
+    \draw[eventarrow] (incident.south) to[out=270, in=170] 
+        node[left, font=\tiny\bfseries\color{accentteal!90}] {Publica} (bus.west);
+    \draw[eventarrow] (bus.north -| notification.south) -- 
+        node[right, font=\tiny\bfseries\color{accentteal!90}] {Consume} (notification.south);
+    \draw[eventarrow] (bus.east) to[out=0, in=270] 
+        node[right, font=\tiny\bfseries\color{accentteal!90}] {Ingesta} (audit.south);
+
+    % Transferencia de archivos SFTP -> Evidence Service (por espacio abierto a la izquierda del bus)
+    \draw[sftparrow] (sftp.north) to[out=55, in=235] 
+        node[above left, font=\tiny\bfseries\color{primary}] {Staging dir (\path{/incoming})} (evidence.south);
+
+    % Notificaciones -> Postfix MTA
+    \draw[arrow, darkslate] (notification.south) to[out=270, in=90] 
+        node[right, font=\tiny\bfseries\color{darkslate}] {SMTP local} (postfix.north);
+
+    % Marco de Infraestructura OS subyacente
     \begin{scope}[on background layer]
-        \node[infrabox, fit=(sftp) (registry) (incident) (evidence) (notification) (audit) (bus) (postfix), label={[font=\tiny\bfseries\color{darkslate!70}, anchor=south east]south east:Infraestructura de Sistema Operativo Persistente: systemd $\cdot$ cgroups v2 $\cdot$ UFW/firewalld $\cdot$ timers $\cdot$ journald $\cdot$ almacenamiento}] {};
+        \node[infrabox, fit=(sftp) (registry) (incident) (evidence) (notification) (audit) (bus) (postfix), 
+              inner sep=14pt,
+              label={[font=\tiny\bfseries\color{darkslate!80}, anchor=south, yshift=3pt]south:Infraestructura de Sistema Operativo Persistente: systemd $\cdot$ cgroups v2 $\cdot$ UFW/firewalld $\cdot$ timers monotónicos $\cdot$ journald $\cdot$ almacenamiento local}] {};
     \end{scope}
     \end{tikzpicture}
     \caption{Topología conceptual de microservicios para Sistemas Operativos II: Descomposición modular de \texttt{nexusd} con API Gateway perimetral, almacenamiento segregado, desacoplamiento asíncrono y persistencia de infraestructura OS.}
