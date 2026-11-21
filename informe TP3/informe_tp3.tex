@@ -984,7 +984,7 @@ La instalación requiere paquetes, caché de Conan, usuarios, directorios y mont
     \item \textbf{Rollback ante fallos posteriores al snapshot:} Intenta restaurar los archivos, la base y los estados inventariados, conservando el error original si la recuperación se completa. En primera instalación retira archivos y habilitaciones nuevos e informa que no había una versión anterior; conserva PKI, datos y backups generados para revisión. Un rollback incompleto devuelve \texttt{11}. No se promete revertir los recursos que el snapshot no incluye.
 \end{enumerate}
 
-La secuencia inicial corregida cuenta con pruebas de regresión con destinos temporales y componentes simulados. Su ejecución completa en máquinas virtuales limpias fue validada empíricamente en el ensayo de la Guía de Instalación (Sección~\ref{sec:ensayo_maquinas_limpias}), mientras que la homologación por una persona ajena al equipo permanece asentada como criterio formal pendiente.
+La secuencia inicial corregida cuenta con pruebas de regresión con destinos temporales y componentes simulados. Su ejecución completa en máquinas virtuales limpias fue validada empíricamente en el ensayo de la Guía de Instalación (Sección~\ref{sec:ensayo_maquinas_limpias}), y fue aceptada por el docente como cumplimiento del criterio de validación de la guía de instalación (Issue \#86), bajo las condiciones descritas en esa sección.
 
 \subsection{Garantía de Idempotencia}
 
@@ -1073,7 +1073,7 @@ En las Figuras~\ref{fig:e8_clean_so_core} y~\ref{fig:e8_clean_so_term} se consta
 \end{figure}
 
 \subsubsection*{2. Despliegue Inicial, Confianza TLS y Primer Backup en \texttt{sector-core}}
-Tras ejecutar la secuencia de instalación inicial (registrada en \path{~/deploy-first.log} con retorno \texttt{0}), el orquestador activó automáticamente \texttt{nexus-backup.service} para generar el primer backup de contingencia antes de permitir tráfico externo. En la Figura~\ref{fig:e8_clean_backup} se exhibe la confirmación del archivo de backup verificado en \path{/var/backups/nexus/}. En la Figura~\ref{fig:e8_clean_tls_health} se corrobora la validación criptográfica de la cadena con \texttt{openssl verify -CAfile} positiva (\texttt{OK}), la huella SHA-256 de la CA local y la ejecución exitosa de \texttt{health-check.sh} con código de salida \texttt{0} (paso A6 de la guía).
+Tras ejecutar la secuencia de instalación inicial (registrada en \path{~/deploy-first.log} con retorno \texttt{0}), el orquestador activó automáticamente \texttt{nexus-backup.service} para generar el primer backup antes de ejecutar el health check final. Esto no supone un bloqueo automático de todo el tráfico externo durante la instalación. En la Figura~\ref{fig:e8_clean_backup} se exhibe la confirmación del archivo de backup verificado en \path{/var/backups/nexus/}. En la Figura~\ref{fig:e8_clean_tls_health} se corrobora la validación criptográfica de la cadena con \texttt{openssl verify -CAfile} positiva (\texttt{OK}), la huella SHA-256 de la CA local y la ejecución exitosa de \texttt{health-check.sh} con código de salida \texttt{0} (paso A6 de la guía).
 
 \begin{figure}[H]
     \centering
@@ -1090,7 +1090,7 @@ Tras ejecutar la secuencia de instalación inicial (registrada en \path{~/deploy
 \end{figure}
 
 \subsubsection*{3. Confinamiento de Red y Puertos en el Servidor}
-En la Figura~\ref{fig:e8_clean_puertos} se verifica el estado operativo de los demonios supervisados por systemd (\texttt{nexus}, \texttt{nginx}, \texttt{ssh}), la inspección de sockets en escucha con \texttt{ss -tulpn} —evidenciando que el backend \texttt{nexusd} escucha exclusivamente en el lazo cerrado \texttt{127.0.0.1:8080} mientras Nginx publica el puerto 443— y el estado activo del cortafuegos \texttt{ufw} autorizando únicamente SSH y HTTPS (paso A7 de la guía).
+En la Figura~\ref{fig:e8_clean_puertos} se verifica el estado operativo de los demonios supervisados por systemd (\texttt{nexus}, \texttt{nginx}, \texttt{ssh}), la inspección de sockets en escucha con \texttt{ss -tulpn} —evidenciando que el backend \texttt{nexusd} escucha exclusivamente en el lazo cerrado \texttt{127.0.0.1:8080} mientras Nginx publica el puerto 443— y el estado activo del cortafuegos \texttt{ufw} permitiendo 22/tcp (SSH/SFTP), 80/tcp (redirección HTTP) y 443/tcp (HTTPS), y denegando 8080/tcp tanto en IPv4 como en IPv6 (paso A7 de la guía).
 
 \begin{figure}[H]
     \centering
@@ -1110,12 +1110,12 @@ Desde \texttt{field-terminal}, se ejecutó \texttt{nexusctl health} contra el se
 \end{figure}
 
 \subsubsection*{5. Transferencia de Evidencias, Integridad SHA-256 y Confinamiento SFTP}
-Se procedió a transferir un archivo binario de prueba mediante el usuario restringido \texttt{nexus\_evidence}. En la Figura~\ref{fig:e8_clean_sftp_put} se constata la transferencia SFTP exitosa con código de retorno \texttt{0}. En la Figura~\ref{fig:e8_clean_sftp_dest} se comprueba en \texttt{sector-core} que el hash SHA-256 calculado en destino sobre \path{/var/lib/nexus/evidence/incoming/} coincide idénticamente con el generado en origen (\texttt{69f2bc8e3981...}). Finalmente, en la Figura~\ref{fig:e8_clean_sftp_noshell} se valida el rechazo tajante de sesiones interactivas: cualquier intento de apertura de terminal SSH rechaza la conexión con el mensaje restrictivo \textit{"This service allows sftp connections only"} (paso B6 de la guía).
+Se transfirió un archivo de prueba mediante el usuario restringido \texttt{nexus\_evidence}. La Figura~\ref{fig:e8_clean_sftp_put} muestra la carga mediante un batch de comandos SFTP, su código de retorno \texttt{0} y el SHA-256 del archivo local \texttt{nexus-validacion-}\allowbreak\texttt{sftp-\ldots.txt}. En la Figura~\ref{fig:e8_clean_sftp_dest}, el mismo archivo en \texttt{incoming} conserva el hash \texttt{5312ccada69c\ldots}. Esta comparación corresponde a la prueba de transferencia; no debe confundirse con el archivo de evidencia registrado posteriormente, cuyo hash comienza con \texttt{69f2bc8e3981\ldots}. La Figura~\ref{fig:e8_clean_sftp_noshell} muestra el rechazo de shell con el mensaje \textit{This service allows sftp connections only} (paso B6 de la guía).
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{images/07_field-terminal_carga-SFTP.png}
-    \caption{Carga interactiva de archivo de prueba vía SFTP hacia \texttt{sector-core} con código de salida \texttt{0}.}
+    \caption{Carga de archivo de prueba mediante un batch SFTP hacia \texttt{sector-core} con código de salida \texttt{0}.}
     \label{fig:e8_clean_sftp_put}
 \end{figure}
 
@@ -1134,12 +1134,12 @@ Se procedió a transferir un archivo binario de prueba mediante el usuario restr
 \end{figure}
 
 \subsubsection*{6. Operación de Campo: Unidades, Evidencias y Aislamiento Perimetral}
-En la Figura~\ref{fig:e8_clean_op_evidence} se aprecia la actividad efectuada bajo la cuenta sin privilegios \texttt{operador} en \texttt{field-terminal}: se dio de alta la unidad táctica \texttt{ENSAYO-20261121-003401} mediante \texttt{nexusctl} y se asoció la evidencia previamente transferida registrando su hash criptográfico. Por último, en la Figura~\ref{fig:e8_clean_op_blocked} se demuestra el éxito del control perimetral (parte C de la guía): mientras que \texttt{nexusctl health} opera con código \texttt{0} sobre el puerto 443, el intento de acceso directo al puerto backend \texttt{192.168.56.101:8080} es descartado por el firewall, provocando que \texttt{curl} expire por tiempo de espera y finalice con código de error \texttt{28}.
+La Figura~\ref{fig:e8_clean_op_evidence} muestra al usuario sin privilegios \texttt{operador} en \texttt{field-terminal}: consulta el listado de unidades mediante \texttt{nexusctl units list} y los metadatos de evidencia del incidente 1 mediante \texttt{curl}. El listado incluye la unidad \texttt{ENSAYO-20261121-003401}; la respuesta de evidencias contiene otro archivo, con checksum \texttt{69f2bc8e3981\ldots}. La captura acredita estas consultas, no las operaciones previas de creación o registro. El alta de unidades se documenta mediante \texttt{POST /api/v1/units} con curl: el cliente actual no tiene \texttt{units create}. En la Figura~\ref{fig:e8_clean_op_blocked}, HTTPS funciona con código \texttt{0}, mientras que el intento directo a \texttt{192.168.56.101:8080} termina por timeout con código \texttt{28}.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{images/10_field-terminal_operador-unidad-y-evidencia.png}
-    \caption{Operación desde \texttt{field-terminal}: alta de unidad y registro de evidencia asociada con hash criptográfico.}
+    \caption{Consultas desde el operador: listado de unidades con nexusctl y metadatos de evidencia con curl.}
     \label{fig:e8_clean_op_evidence}
 \end{figure}
 
@@ -1155,18 +1155,18 @@ En la Figura~\ref{fig:e8_clean_op_evidence} se aprecia la actividad efectuada ba
 La ejecución del ensayo permitió identificar discrepancias operativas y hallazgos técnicos de relevancia que enriquecen la documentación y perfilan los límites de la guía:
 
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Modo de Permisos en Transferencia SFTP Manual vs. Script Oficial:} En el ensayo interactivo manual (Figura~\ref{fig:e8_clean_sftp_dest}), el archivo subido mediante el comando \texttt{put} de \texttt{sftp} quedó en el destino con permisos \texttt{0600} en lugar de los \texttt{0640} descriptos en el paso B6 de la guía. Esto ocurre porque el comando interactivo \texttt{sftp} preserva el modo del archivo temporal en origen generado con \texttt{mktemp} (\texttt{0600}). En contraste, cuando la carga se efectúa mediante el script automatizado \texttt{upload-evidence.sh} (paso B8), el script se encarga explícitamente de normalizar la máscara a \texttt{0640} con pertenencia al grupo \texttt{nexus}, asegurando que el demonio lector disponga de acceso. Se constata la conveniencia de corregir la redacción del paso B6 en \path{docs/installation.md} para explicitar dicho comportamiento.
-    \item \textbf{Destino de Entrega Local en Notificaciones Postfix:} Al registrar un incidente crítico, el demonio \texttt{nexusd} asentó en su registro \texttt{entrega=OK} para el destinatario \texttt{operadores@nexus9.local}. Sin embargo, el mensaje no se encontró disponible en el buzón local \path{/var/mail/nexus-ops} ni en la cola activa de Postfix debido a que el dominio \texttt{nexus9.local} no se hallaba explícitamente listado en la directiva \texttt{mydestination} de \path{/etc/postfix/main.cf}. La entrega interna requiere homogeneizar dicha directiva en la configuración del agente de transporte.
+    \item \textbf{Permisos de la carga SFTP directa y del script oficial:} El archivo de la Figura~\ref{fig:e8_clean_sftp_dest} quedó en modo \texttt{0600}, coincidente con el archivo de origen creado con \texttt{mktemp}. La umask del servidor restringe permisos, pero no añade lectura al grupo cuando el origen no la permite. El script \texttt{upload-evidence.sh} ejecuta explícitamente \texttt{chmod 640} sobre el archivo remoto; no cambia la umask ni ejecuta chgrp. El grupo nexus se hereda del directorio incoming mediante setgid. La guía debe explicar esta diferencia en B6 y conservar el procedimiento de B8 para la carga y registro completos.
+    \item \textbf{Notificación no recibida en el ensayo limpio:} Se registró \texttt{entrega=OK} para \texttt{operadores@nexus9.local}, pero no se encontró el mensaje en \path{/var/mail/nexus-ops} ni en la cola activa al inspeccionarla. La aceptación por sendmail no acredita entrega efectiva al buzón. El destinatario observado difiere del buzón operativo esperado. Queda pendiente revisar \texttt{mail\_to}, la resolución local del dominio mediante \texttt{mydestination}, la existencia del destinatario o sus aliases y los logs de entrega/rebote. Añadir únicamente el dominio a mydestination no garantiza que operadores se corresponda con nexus-ops. Debe corregirse la configuración o la guía y repetir la prueba hasta comprobar la recepción real. Este hallazgo no invalida la entrega demostrada en el entorno original (Figura~\ref{fig:e3_notificacion}), pero impide darla por validada en la instalación nueva.
     \item \textbf{Entorno de Ejecución del Operador de Campo:} La guía instruye la conmutación al usuario operador mediante \texttt{su - operador}. Al utilizarse en el ensayo el comando \texttt{sudo -iu operador}, la variable de entorno \texttt{PATH} predeterminada por la configuración PAM de Rocky Linux excluyó el directorio \path{/usr/local/bin}, requiriendo invocación calificada o la debida exportación en el archivo \path{.bashrc}.
     \item \textbf{Adaptaciones de Red y Clonación:} Para el laboratorio del ensayo se asignó la subred privada con IPs \texttt{192.168.56.101} y \texttt{192.168.56.102} (ajustando consecuentemente las extensiones SAN del certificado y la variable \texttt{NEXUS\_SERVER\_IP}), y la clonación del repositorio se realizó a partir de un paquete git empaquetado (\textit{bundle}), evitando requerir conectividad hacia repositorios externos privados durante la preparación.
 \end{enumerate}
 
 \subsubsection*{Estado de Cumplimiento respecto al Criterio de la Consigna}
 
-A partir de los resultados obtenidos, es imperativo distinguir entre la viabilidad técnica demostrada y el criterio formal de aprobación fijado por la cátedra:
+Se documentan tanto el alcance técnico del ensayo como la aclaración del docente sobre su aceptación para el criterio de la consigna:
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Viabilidad Técnica Demostrada:} El ensayo constata fehacientemente que las instrucciones de \path{docs/installation.md} y los scripts de orquestación son reproducibles desde cero en sistemas operativos vírgenes: el despliegue concluye con éxito, los servicios se inician bajo supervisión de systemd, los cortafuegos y políticas MAC de SELinux operan en modo restrictivo (\textit{Enforcing}), las transferencias SFTP se enjaulan correctamente y el cliente C opera sin anomalías sobre HTTPS.
-    \item \textbf{Criterio de Cierre Formal Pendiente (Issue \#86):} La consigna de la cátedra estipula textualmente que \textit{"Una persona ajena al equipo puede instalar el sector siguiendo la documentación"}. Dado que este ensayo fue conducido internamente por integrantes del equipo de desarrollo (Facundo asistido por un agente IA mediante SSH), \textbf{el criterio de cierre definitivo de la Issue \#86 permanece formalmente abierto}. La acreditación final requerirá que un evaluador independiente sin intervención de los autores registre su nombre, fecha, commit y reporte de observaciones sobre un entorno limpio.
+    \item \textbf{Alcance técnico demostrado:} Se comprobó una instalación funcional en VMs nuevas con las adaptaciones y dificultades registradas: despliegue y primer backup exitosos, health check con código 0, acceso HTTPS desde Rocky, transferencia SFTP y bloqueo del puerto 8080. Se conservan las adaptaciones y dificultades observadas para precisar las condiciones de la prueba. La entrega de notificaciones requiere corrección y una nueva comprobación, como hallazgo técnico separado de la aceptación del ensayo por la cátedra.
+    \item \textbf{Validación aceptada por la cátedra (Issue \#86):} El docente indicó que este ensayo sobre máquinas virtuales nuevas cuenta para cumplir el requisito de validación de la guía de instalación. En consecuencia, se considera satisfecho ese criterio conforme a la aclaración recibida. Se mantiene explícita la modalidad real: Facundo, integrante del equipo, realizó la instalación asistido por un agente IA mediante SSH. La aceptación docente corresponde a esta modalidad y no implica que haya intervenido una persona externa al grupo.
 \end{itemize}
 
 \subsection{Recorrido Paso a Paso de la Prueba Integral (14 Pasos)}
@@ -1349,79 +1349,57 @@ En la Figura~\ref{fig:arquitectura_so2} se ilustra la descomposición proyectada
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[
-        scale=0.92, transform shape,
-        box/.style={rectangle, draw=uncblue!90, fill=boxbg, rounded corners=3pt, minimum width=2.7cm, text width=2.5cm, minimum height=1.25cm, align=center, font=\scriptsize, line width=0.85pt},
-        gwbox/.style={rectangle, draw=primary, fill=uncblue!10, rounded corners=3pt, minimum width=15.1cm, text width=14.9cm, minimum height=0.95cm, align=center, font=\footnotesize, line width=1pt},
-        actorbox/.style={rectangle, draw=darkslate!80, fill=darkslate!10, rounded corners=3pt, minimum width=4.6cm, text width=4.4cm, minimum height=0.95cm, align=center, font=\scriptsize, line width=0.85pt},
-        busbox/.style={rectangle, draw=accentteal!90, fill=accentteal!12, rounded corners=3pt, minimum width=8.6cm, text width=8.4cm, minimum height=0.85cm, align=center, font=\scriptsize, line width=0.9pt},
-        infrabox/.style={rectangle, draw=darkslate!40, fill=darkslate!5, dashed, rounded corners=6pt, line width=0.7pt},
-        arrow/.style={-{Stealth[scale=0.85]}, draw=uncblue!90, line width=0.85pt},
-        eventarrow/.style={-{Stealth[scale=0.85]}, draw=accentteal!90, dashed, line width=0.9pt},
-        sftparrow/.style={-{Stealth[scale=0.85]}, draw=primary, dotted, line width=1.1pt}
+        scale=0.86, transform shape,
+        service/.style={rectangle, rounded corners=3pt, draw=uncblue, fill=boxbg, text width=2.45cm, minimum height=1.35cm, align=center, font=\scriptsize, line width=0.8pt},
+        gatewaybox/.style={service, fill=uncblue!10, text width=14.8cm, minimum height=0.95cm},
+        actor/.style={service, fill=darkslate!8, text width=4.0cm, minimum height=1.0cm},
+        eventbox/.style={service, draw=accentteal, fill=accentteal!12, text width=10.2cm, minimum height=0.9cm},
+        flow/.style={-{Stealth}, draw=uncblue, line width=0.85pt},
+        event/.style={flow, draw=accentteal, dashed},
+        transfer/.style={flow, draw=primary, dotted, line width=1pt},
+        edgelabel/.style={font=\tiny, fill=white, inner sep=1pt, align=center}
     ]
-    % 1. Field Terminal (Cliente externo en Rocky Linux)
-    \node[actorbox] (terminal) at (0, 4.4) {\textbf{\texttt{field-terminal}} (Rocky Linux 10.2)\\[1pt]\scriptsize Operador sin privilegios $\cdot$ \texttt{nexusctl} / cliente SFTP};
+    \node[actor] (terminal) at (0,6.2) {\textbf{field-terminal} (Rocky Linux)\\Operador: nexusctl / cliente SFTP};
+    \node[gatewaybox] (gateway) at (0,4.8) {\textbf{API Gateway: Nginx}\\HTTPS, enrutamiento y límites propuestos};
 
-    % 2. API Gateway (Nginx Evolucionado)
-    \node[gwbox] (gateway) at (0, 2.7) {\textbf{API Gateway (Nginx Evolucionado)}\\[2pt]\scriptsize Terminación TLS (HTTPS :443) $\cdot$ Reverse Proxy $\cdot$ Rate Limiting $\cdot$ Enrutamiento y Mapeo Semántico};
+    \node[service] (registry) at (-6,2.7) {\textbf{Registry Service}\\Unidades y operadores};
+    \node[service] (incident) at (-3,2.7) {\textbf{Incident Service}\\Incidentes y outbox};
+    \node[service] (evidence) at (0,2.7) {\textbf{Evidence Service}\\Metadatos y archivos};
+    \node[service] (notification) at (3,2.7) {\textbf{Notification Service}\\Cola y reintentos};
+    \node[service] (audit) at (6,2.7) {\textbf{Audit Service}\\Registro de eventos};
 
-    % 3. Core Microservices (5 servicios distribuidos)
-    \node[box] (registry)     at (-6.2, 0.8) {\textbf{Registry Service}\\[2pt]\scriptsize Catálogo Unidades\\y Operadores};
-    \node[box] (incident)     at (-3.1, 0.8) {\textbf{Incident Service}\\[2pt]\scriptsize Ciclo de Vida y\\Outbox Transacc.};
-    \node[box] (evidence)     at ( 0.0, 0.8) {\textbf{Evidence Service}\\[2pt]\scriptsize Metadatos y Files\\Staging $\rightarrow$ Publ.};
-    \node[box] (notification) at ( 3.1, 0.8) {\textbf{Notification Service}\\[2pt]\scriptsize Cola de Despacho\\y Reintentos};
-    \node[box] (audit)        at ( 6.2, 0.8) {\textbf{Audit Service}\\[2pt]\scriptsize Ingesta Inmutable\\Append-Only};
+    \node[eventbox] (bus) at (1.5,0.3) {\textbf{Canal de eventos y despachadores de outbox}\\\tiny incident.critical\_created, incident.status\_changed, evidence.registered};
+    \node[actor] (sftp) at (-5.5,-1.8) {\textbf{OpenSSH / SFTP}\\Cuenta restringida y staging\\\path{/srv/nexus-sftp}};
+    \node[actor] (postfix) at (5,-1.8) {\textbf{Postfix local}\\Cola de correo y buzón\\\path{/var/mail/nexus-ops}};
 
-    % 4. Event Bus / Outbox Asíncrono (Debajo de Incident, Evidence, Notification y Audit)
-    \node[busbox] (bus) at (2.4, -0.8) {\textbf{Canal de Eventos Asíncronos / Transactional Outbox}\\[1pt]\tiny\texttt{incident.critical\_created} $\cdot$ \texttt{incident.status\_changed} $\cdot$ \texttt{evidence.registered}};
+    \draw[flow] (terminal.south) -- node[edgelabel,right] {HTTPS :443} (gateway.north);
+    \foreach \target in {registry,incident,evidence,notification,audit} {
+        \draw[flow] (gateway.south -| \target.north) -- (\target.north);
+    }
+    % Los numeros remiten a la leyenda y evitan texto sobre las cajas.
+    \draw[flow] (incident.west) -- node[font=\tiny,above] {1} (registry.east);
+    \draw[flow] (evidence.west) -- node[font=\tiny,above] {2} (incident.east);
 
-    % 5. Infraestructura SFTP (Izquierda) y Postfix MTA (Derecha)
-    \node[actorbox] (sftp) at (-5.0, -2.2) {\textbf{OpenSSH / SFTP Server}\\[1pt]\tiny Cuenta en chroot (\texttt{nexus\_evidence})\\Directorio \path{/srv/nexus-sftp}};
-    
-    \node[actorbox] (postfix) at (4.6, -2.2) {\textbf{Postfix MTA Local}\\[1pt]\tiny Buzón spool en disco\\Directorio \path{/var/mail/nexus-ops}};
+    \draw[event] (incident.south) -- node[edgelabel,left,pos=0.25] {Publica} (bus.north -| incident.south);
+    \draw[event] (evidence.south) -- (bus.north -| evidence.south);
+    \draw[event] (bus.north -| notification.south) -- node[edgelabel,right,pos=0.65] {Consume} (notification.south);
+    \draw[event] (bus.north -| audit.south) -- node[edgelabel,right,pos=0.65] {Consume} (audit.south);
 
-    % Conexiones Cliente -> Gateway / SFTP
-    \draw[arrow] (terminal) -- node[right, font=\tiny\bfseries\color{primary}] {HTTPS (:443)} (gateway);
-    
-    % Flujo SFTP perimetral: bypass externo limpio hacia OpenSSH sin tocar el Gateway
-    \draw[sftparrow] (terminal.west) to[out=180, in=90] (-8.1, 2.7) to[out=270, in=170] 
-        node[left, font=\tiny\bfseries\color{primary}, align=right] {SFTP (:22)\\Carga directa} (sftp.west);
+    % Carril SMTP exterior: no atraviesa el canal de eventos.
+    \draw[flow,draw=darkslate] (notification.south east) -- (4.5,1.7) -- (7.8,1.7)
+        -- node[edgelabel,right] {SMTP local} (7.8,-1.8) -- (postfix.east);
+    % Acceso SFTP exterior al gateway y a los servicios.
+    \draw[transfer] (terminal.west) -- (-8.5,6.2)
+        -- node[edgelabel,left] {SFTP\\:22} (-8.5,-1.8) -- (sftp.west);
+    % Paso de archivos con un corte blanco en el cruce: no es una union de flujos.
+    \draw[transfer,preaction={draw=white,line width=3pt}]
+        (sftp.north) -- (-5.5,1.35) -- (0,1.35) -- (evidence.south);
+    \node[edgelabel] at (-5.5,-0.15) {Archivos\\de staging};
 
-    % Gateway -> Microservicios (5 flechas verticales sin cruces)
-    \draw[arrow] (gateway.south -| registry.north)     -- (registry.north);
-    \draw[arrow] (gateway.south -| incident.north)     -- (incident.north);
-    \draw[arrow] (gateway.south -| evidence.north)     -- (evidence.north);
-    \draw[arrow] (gateway.south -| notification.north) -- (notification.north);
-    \draw[arrow] (gateway.south -| audit.north)        -- (audit.north);
-
-    % Dependencias síncronas entre microservicios (arcos superiores en el espacio despejado)
-    \draw[arrow, uncblue!85] (incident.north) to[bend right=22] 
-        node[above, font=\tiny\bfseries\color{uncblue!90}] {1. Valida Unit / Op (HTTP)} (registry.north);
-    \draw[arrow, uncblue!85] (evidence.north) to[bend right=22] 
-        node[above, font=\tiny\bfseries\color{uncblue!90}] {2. Valida Incident ID (HTTP)} (incident.north);
-
-    % Event Bus: Publicación Outbox y Consumo Asíncrono
-    \draw[eventarrow] (incident.south) to[out=270, in=170] 
-        node[left, font=\tiny\bfseries\color{accentteal!90}] {Publica} (bus.west);
-    \draw[eventarrow] (bus.north -| notification.south) -- 
-        node[right, font=\tiny\bfseries\color{accentteal!90}] {Consume} (notification.south);
-    \draw[eventarrow] (bus.east) to[out=0, in=270] 
-        node[right, font=\tiny\bfseries\color{accentteal!90}] {Ingesta} (audit.south);
-
-    % Transferencia de archivos SFTP -> Evidence Service (por espacio abierto a la izquierda del bus)
-    \draw[sftparrow] (sftp.north) to[out=55, in=235] 
-        node[above left, font=\tiny\bfseries\color{primary}] {Staging dir (\path{/incoming})} (evidence.south);
-
-    % Notificaciones -> Postfix MTA
-    \draw[arrow, darkslate] (notification.south) to[out=270, in=90] 
-        node[right, font=\tiny\bfseries\color{darkslate}] {SMTP local} (postfix.north);
-
-    % Marco de Infraestructura OS subyacente
-    \begin{scope}[on background layer]
-        \node[infrabox, fit=(sftp) (registry) (incident) (evidence) (notification) (audit) (bus) (postfix), 
-              inner sep=14pt,
-              label={[font=\tiny\bfseries\color{darkslate!80}, anchor=south, yshift=3pt]south:Infraestructura de Sistema Operativo Persistente: systemd $\cdot$ cgroups v2 $\cdot$ UFW/firewalld $\cdot$ timers monotónicos $\cdot$ journald $\cdot$ almacenamiento local}] {};
-    \end{scope}
+    \node[font=\tiny,align=center,text width=16cm] at (0,-3.1)
+        {1: Incident consulta unidades y operadores en Registry. 2: Evidence consulta el incidente.\\
+         Flechas continuas: peticiones. Discontinuas: eventos. Punteadas: transferencia de archivos.\\
+         Infraestructura: systemd, cgroups, firewall, certificados, timers, logs y almacenamiento.};
     \end{tikzpicture}
     \caption{Topología conceptual de microservicios para Sistemas Operativos II: Descomposición modular de \texttt{nexusd} con API Gateway perimetral, almacenamiento segregado, desacoplamiento asíncrono y persistencia de infraestructura OS.}
     \label{fig:arquitectura_so2}
@@ -1645,8 +1623,9 @@ A lo largo de las ocho etapas de implementación y los escenarios obligatorios d
 En estricta observancia de los criterios de rigor y transparencia técnica estipulados en la consigna de la cátedra, se establecen con claridad los límites y estados pendientes que caracterizan al cierre del presente informe:
 
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Validación de Instalación en Máquinas Limpias desde Cero:} El procedimiento documentado en \path{docs/installation.md} y el orquestador \texttt{deploy.sh} fueron sometidos a un ensayo experimental sobre dos máquinas virtuales nuevas e independientes en VirtualBox (\texttt{sector-core} sobre Ubuntu 26.04 y \texttt{field-terminal} sobre Rocky Linux 10.2, commit \texttt{4404872}), comprobando el despliegue exitoso, la generación del primer backup y la salud global con código \texttt{0} (detallado en la Sección~\ref{sec:ensayo_maquinas_limpias}). Esto acreditó la viabilidad y completitud técnica de la guía.
-    \item \textbf{Validación Externa por Persona Ajena al Equipo (Issue \#86):} En estricto apego al criterio de cumplimiento exigido por la consigna y la \textbf{Issue \#86}, la prueba de aceptación final realizada por un operador independiente ajeno al equipo de desarrollo \textbf{permanece como una actividad formalmente pendiente}. Si bien el sistema demostró reproducibilidad técnica ante los autores, la auditoría ciega por un tercero ajeno constituirá el hito definitivo de cierre previo a la homologación final.
+    \item \textbf{Ensayo interno en máquinas limpias:} Se instalaron dos VMs nuevas en VirtualBox, con Ubuntu 26.04 y Rocky Linux 10.2, sobre el commit \texttt{4404872}. Se comprobaron despliegue, primer backup y salud con código \texttt{0}, además de las verificaciones descritas en la Sección~\ref{sec:ensayo_maquinas_limpias}. El resultado demuestra funcionamiento bajo las condiciones y adaptaciones ensayadas. El docente aceptó esta modalidad para cumplir el criterio de validación de la guía; se conservan los hallazgos técnicos registrados.
+    \item \textbf{Notificaciones en la instalación nueva:} La alerta del ensayo no fue localizada en el buzón operativo esperado. Deben revisarse destinatario, dominio local, aliases y registros de Postfix, corregir la configuración o las instrucciones correspondientes y repetir la comprobación de recepción. El registro de aceptación del envío no basta para cerrar este punto.
+    \item \textbf{Criterio de validación de la guía (Issue \#86):} Se considera cumplido conforme a la aceptación del docente del ensayo en máquinas virtuales nuevas. La modalidad y la participación del equipo se describen en la Sección~\ref{sec:ensayo_maquinas_limpias}; no se presenta como una instalación realizada por una persona externa.
 \end{enumerate}
 
 Las bases operativas, de seguridad, de persistencia y de automatización construidas en este Capítulo 3 fijan un cimiento sólido e ineludible para abordar, con pleno conocimiento de los mecanismos del núcleo de Linux, los desafíos concurrentes y distribuidos que demandará \textit{Sistemas Operativos II}.
