@@ -12,7 +12,7 @@
 
 % --- Elementos gráficos y tablas ---
 \usepackage{graphicx}
-\graphicspath{{images/}{./}}
+\graphicspath{{images/}{capturas/}{./}}
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
@@ -984,7 +984,7 @@ La instalación requiere paquetes, caché de Conan, usuarios, directorios y mont
     \item \textbf{Rollback ante fallos posteriores al snapshot:} Intenta restaurar los archivos, la base y los estados inventariados, conservando el error original si la recuperación se completa. En primera instalación retira archivos y habilitaciones nuevos e informa que no había una versión anterior; conserva PKI, datos y backups generados para revisión. Un rollback incompleto devuelve \texttt{11}. No se promete revertir los recursos que el snapshot no incluye.
 \end{enumerate}
 
-La secuencia inicial corregida cuenta con pruebas de regresión con destinos temporales y componentes simulados. Su ejecución completa en una VM limpia y la validación por una persona externa siguen pendientes.
+La secuencia inicial corregida cuenta con pruebas de regresión con destinos temporales y componentes simulados. Su ejecución completa en máquinas virtuales limpias fue validada empíricamente en el ensayo de la Guía de Instalación (Sección~\ref{sec:ensayo_maquinas_limpias}), mientras que la homologación por una persona ajena al equipo permanece asentada como criterio formal pendiente.
 
 \subsection{Garantía de Idempotencia}
 
@@ -1040,6 +1040,134 @@ En la Figura~\ref{fig:e8_rollback} se documenta el comportamiento de reversión 
     \caption{Ejecución automática de rollback restaurando la versión sana previa ante fallo de validación.}
     \label{fig:e8_rollback}
 \end{figure}
+
+\subsection{Verificación Experimental de la Guía de Instalación en Máquinas Limpias (Issue \#86 / E8-10)}
+\label{sec:ensayo_maquinas_limpias}
+
+Como parte de los requerimientos de la Etapa 08 y el seguimiento de la \textbf{Issue \#86} (\textit{E8-10: Documento de instalación para una persona ajena al equipo}), se estructuró la guía paso a paso \path{docs/installation.md} (formalizada en la PR \#135 tras superar la validación sintáctica de sus 38 bloques Bash y comprobación de rutas y enlaces). 
+
+Para verificar empíricamente la reproducibilidad técnica de dicho instructivo fuera de los entornos de desarrollo preexistentes, se llevó a cabo un \textbf{ensayo de instalación integral desde cero sobre dos máquinas virtuales nuevas e independientes} creadas en VirtualBox:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Nodo Servidor (\texttt{sector-core}):} Ubuntu Server 26.04.1 LTS x86\_64 (IP de ensayo: \texttt{192.168.56.101}).
+    \item \textbf{Nodo Cliente (\texttt{field-terminal}):} Rocky Linux 10.2 x86\_64 (IP de ensayo: \texttt{192.168.56.102}).
+    \item \textbf{Versión de Código Evaluada:} Commit \texttt{44048725481ee120888afb1904fa8b7704843807} (rama \texttt{TP3}).
+\end{itemize}
+
+El ensayo cubrió el aprovisionamiento de dependencias, compilación, creación de usuarios, configuración del chroot SFTP, confianza en la CA raíz, despliegue de \texttt{nexusd}, generación del primer backup y validación perimetral completa. A continuación se presentan las 11 evidencias documentadas durante la ejecución de las fases de la guía:
+
+\subsubsection*{1. Identificación de Entorno y Verificación de Commit}
+En las Figuras~\ref{fig:e8_clean_so_core} y~\ref{fig:e8_clean_so_term} se constata el arranque de ambas máquinas virtuales en estado inicial, verificando la versión del kernel, la distribución de sistema operativo y la alineación estricta al commit de evaluación en la rama \texttt{TP3}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/01_sector-core_SO-y-commit.png}
+    \caption{Identificación de sistema operativo, arquitectura x86\_64 y commit en \texttt{sector-core}.}
+    \label{fig:e8_clean_so_core}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/02_field-terminal_SO-y-commit.png}
+    \caption{Identificación de sistema operativo, arquitectura y commit en \texttt{field-terminal} (Rocky Linux 10.2).}
+    \label{fig:e8_clean_so_term}
+\end{figure}
+
+\subsubsection*{2. Despliegue Inicial, Confianza TLS y Primer Backup en \texttt{sector-core}}
+Tras ejecutar la secuencia de instalación inicial (registrada en \path{~/deploy-first.log} con retorno \texttt{0}), el orquestador activó automáticamente \texttt{nexus-backup.service} para generar el primer backup de contingencia antes de permitir tráfico externo. En la Figura~\ref{fig:e8_clean_backup} se exhibe la confirmación del archivo de backup verificado en \path{/var/backups/nexus/}. En la Figura~\ref{fig:e8_clean_tls_health} se corrobora la validación criptográfica de la cadena con \texttt{openssl verify -CAfile} positiva (\texttt{OK}), la huella SHA-256 de la CA local y la ejecución exitosa de \texttt{health-check.sh} con código de salida \texttt{0} (paso A6 de la guía).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/03_sector-core_primer-backup.png}
+    \caption{Generación y validación del primer backup de contingencia tras la primera instalación en \texttt{sector-core}.}
+    \label{fig:e8_clean_backup}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/04_sector-core_certificado-y-health.png}
+    \caption{Validación positiva de OpenSSL con la CA raíz del laboratorio y comprobación de salud (\texttt{health 0}).}
+    \label{fig:e8_clean_tls_health}
+\end{figure}
+
+\subsubsection*{3. Confinamiento de Red y Puertos en el Servidor}
+En la Figura~\ref{fig:e8_clean_puertos} se verifica el estado operativo de los demonios supervisados por systemd (\texttt{nexus}, \texttt{nginx}, \texttt{ssh}), la inspección de sockets en escucha con \texttt{ss -tulpn} —evidenciando que el backend \texttt{nexusd} escucha exclusivamente en el lazo cerrado \texttt{127.0.0.1:8080} mientras Nginx publica el puerto 443— y el estado activo del cortafuegos \texttt{ufw} autorizando únicamente SSH y HTTPS (paso A7 de la guía).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/05_sector-core_servicios-puertos-firewall.png}
+    \caption{Servicios en ejecución, sockets activos (\texttt{127.0.0.1:8080} confinado) y reglas de \texttt{ufw} en \texttt{sector-core}.}
+    \label{fig:e8_clean_puertos}
+\end{figure}
+
+\subsubsection*{4. Consumo de API por Cliente Nativo sobre HTTPS}
+Desde \texttt{field-terminal}, se ejecutó \texttt{nexusctl health} contra el servidor. Como se observa en la Figura~\ref{fig:e8_clean_client_health}, la biblioteca \texttt{libcurl} resolvió el apretón de manos TLS de forma transparente gracias a la previa incorporación del certificado de la CA raíz en el almacén de Rocky Linux (\path{/etc/pki/ca-trust/source/anchors/}), retornando la respuesta JSON de salud sin requerir parámetros de evasión insegura (pasos B3 y B4).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/06_field-terminal_nexusctl-health-HTTPS.png}
+    \caption{Consulta de salud desde \texttt{field-terminal} con \texttt{nexusctl} verificando canal seguro HTTPS y código de retorno \texttt{0}.}
+    \label{fig:e8_clean_client_health}
+\end{figure}
+
+\subsubsection*{5. Transferencia de Evidencias, Integridad SHA-256 y Confinamiento SFTP}
+Se procedió a transferir un archivo binario de prueba mediante el usuario restringido \texttt{nexus\_evidence}. En la Figura~\ref{fig:e8_clean_sftp_put} se constata la transferencia SFTP exitosa con código de retorno \texttt{0}. En la Figura~\ref{fig:e8_clean_sftp_dest} se comprueba en \texttt{sector-core} que el hash SHA-256 calculado en destino sobre \path{/var/lib/nexus/evidence/incoming/} coincide idénticamente con el generado en origen (\texttt{69f2bc8e3981...}). Finalmente, en la Figura~\ref{fig:e8_clean_sftp_noshell} se valida el rechazo tajante de sesiones interactivas: cualquier intento de apertura de terminal SSH rechaza la conexión con el mensaje restrictivo \textit{"This service allows sftp connections only"} (paso B6 de la guía).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/07_field-terminal_carga-SFTP.png}
+    \caption{Carga interactiva de archivo de prueba vía SFTP hacia \texttt{sector-core} con código de salida \texttt{0}.}
+    \label{fig:e8_clean_sftp_put}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/08_sector-core_SFTP-checksum-y-modo.png}
+    \caption{Verificación de coincidencia de checksum SHA-256 en \texttt{incoming} y revisión de permisos del archivo depositado.}
+    \label{fig:e8_clean_sftp_dest}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/09_field-terminal_rechazo-de-shell.png}
+    \caption{Rechazo estricto de shell interactiva para el usuario de evidencias \texttt{nexus\_evidence}.}
+    \label{fig:e8_clean_sftp_noshell}
+\end{figure}
+
+\subsubsection*{6. Operación de Campo: Unidades, Evidencias y Aislamiento Perimetral}
+En la Figura~\ref{fig:e8_clean_op_evidence} se aprecia la actividad efectuada bajo la cuenta sin privilegios \texttt{operador} en \texttt{field-terminal}: se dio de alta la unidad táctica \texttt{ENSAYO-20261121-003401} mediante \texttt{nexusctl} y se asoció la evidencia previamente transferida registrando su hash criptográfico. Por último, en la Figura~\ref{fig:e8_clean_op_blocked} se demuestra el éxito del control perimetral (parte C de la guía): mientras que \texttt{nexusctl health} opera con código \texttt{0} sobre el puerto 443, el intento de acceso directo al puerto backend \texttt{192.168.56.101:8080} es descartado por el firewall, provocando que \texttt{curl} expire por tiempo de espera y finalice con código de error \texttt{28}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/10_field-terminal_operador-unidad-y-evidencia.png}
+    \caption{Operación desde \texttt{field-terminal}: alta de unidad y registro de evidencia asociada con hash criptográfico.}
+    \label{fig:e8_clean_op_evidence}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/11_field-terminal_operador-health-y-puerto-8080-bloqueado.png}
+    \caption{Consulta nominal HTTPS (código \texttt{0}) y confirmación de puerto 8080 perimetralmente bloqueado (código 28 de curl).}
+    \label{fig:e8_clean_op_blocked}
+\end{figure}
+
+\subsubsection*{Análisis de Diferencias Operativas y Hallazgos Técnicos}
+
+La ejecución del ensayo permitió identificar discrepancias operativas y hallazgos técnicos de relevancia que enriquecen la documentación y perfilan los límites de la guía:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Modo de Permisos en Transferencia SFTP Manual vs. Script Oficial:} En el ensayo interactivo manual (Figura~\ref{fig:e8_clean_sftp_dest}), el archivo subido mediante el comando \texttt{put} de \texttt{sftp} quedó en el destino con permisos \texttt{0600} en lugar de los \texttt{0640} descriptos en el paso B6 de la guía. Esto ocurre porque el comando interactivo \texttt{sftp} preserva el modo del archivo temporal en origen generado con \texttt{mktemp} (\texttt{0600}). En contraste, cuando la carga se efectúa mediante el script automatizado \texttt{upload-evidence.sh} (paso B8), el script se encarga explícitamente de normalizar la máscara a \texttt{0640} con pertenencia al grupo \texttt{nexus}, asegurando que el demonio lector disponga de acceso. Se constata la conveniencia de corregir la redacción del paso B6 en \path{docs/installation.md} para explicitar dicho comportamiento.
+    \item \textbf{Destino de Entrega Local en Notificaciones Postfix:} Al registrar un incidente crítico, el demonio \texttt{nexusd} asentó en su registro \texttt{entrega=OK} para el destinatario \texttt{operadores@nexus9.local}. Sin embargo, el mensaje no se encontró disponible en el buzón local \path{/var/mail/nexus-ops} ni en la cola activa de Postfix debido a que el dominio \texttt{nexus9.local} no se hallaba explícitamente listado en la directiva \texttt{mydestination} de \path{/etc/postfix/main.cf}. La entrega interna requiere homogeneizar dicha directiva en la configuración del agente de transporte.
+    \item \textbf{Entorno de Ejecución del Operador de Campo:} La guía instruye la conmutación al usuario operador mediante \texttt{su - operador}. Al utilizarse en el ensayo el comando \texttt{sudo -iu operador}, la variable de entorno \texttt{PATH} predeterminada por la configuración PAM de Rocky Linux excluyó el directorio \path{/usr/local/bin}, requiriendo invocación calificada o la debida exportación en el archivo \path{.bashrc}.
+    \item \textbf{Adaptaciones de Red y Clonación:} Para el laboratorio del ensayo se asignó la subred privada con IPs \texttt{192.168.56.101} y \texttt{192.168.56.102} (ajustando consecuentemente las extensiones SAN del certificado y la variable \texttt{NEXUS\_SERVER\_IP}), y la clonación del repositorio se realizó a partir de un paquete git empaquetado (\textit{bundle}), evitando requerir conectividad hacia repositorios externos privados durante la preparación.
+\end{enumerate}
+
+\subsubsection*{Estado de Cumplimiento respecto al Criterio de la Consigna}
+
+A partir de los resultados obtenidos, es imperativo distinguir entre la viabilidad técnica demostrada y el criterio formal de aprobación fijado por la cátedra:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Viabilidad Técnica Demostrada:} El ensayo constata fehacientemente que las instrucciones de \path{docs/installation.md} y los scripts de orquestación son reproducibles desde cero en sistemas operativos vírgenes: el despliegue concluye con éxito, los servicios se inician bajo supervisión de systemd, los cortafuegos y políticas MAC de SELinux operan en modo restrictivo (\textit{Enforcing}), las transferencias SFTP se enjaulan correctamente y el cliente C opera sin anomalías sobre HTTPS.
+    \item \textbf{Criterio de Cierre Formal Pendiente (Issue \#86):} La consigna de la cátedra estipula textualmente que \textit{"Una persona ajena al equipo puede instalar el sector siguiendo la documentación"}. Dado que este ensayo fue conducido internamente por integrantes del equipo de desarrollo (Facundo asistido por un agente IA mediante SSH), \textbf{el criterio de cierre definitivo de la Issue \#86 permanece formalmente abierto}. La acreditación final requerirá que un evaluador independiente sin intervención de los autores registre su nombre, fecha, commit y reporte de observaciones sobre un entorno limpio.
+\end{itemize}
 
 \subsection{Recorrido Paso a Paso de la Prueba Integral (14 Pasos)}
 \label{sec:integral}
@@ -1501,8 +1629,8 @@ A lo largo de las ocho etapas de implementación y los escenarios obligatorios d
 En estricta observancia de los criterios de rigor y transparencia técnica estipulados en la consigna de la cátedra, se establecen con claridad los límites y estados pendientes que caracterizan al cierre del presente informe:
 
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Validación de Instalación en Entorno Controlado vs. Máquina Virtual Limpia:} Si bien el script de despliegue \texttt{deploy.sh} y sus herramientas complementarias fueron corregidos, verificados exhaustivamente y depurados mediante baterías de pruebas y ensayos controlados en el entorno de desarrollo, \textbf{no se afirma ni debe asumirse que la primera instalación corregida haya sido ensayada integralmente sobre una máquina virtual completamente limpia desde cero}. Dicha validación sobre un entorno estéril representa una tarea de aseguramiento de calidad planificada para etapas de homologación posteriores.
-    \item \textbf{Validación Externa por Persona Ajena al Equipo (Issue \#86):} La prueba de aceptación final y auditoría de procedimientos operativos ejecutada por un operador o evaluador independiente ajeno al equipo de desarrollo (\textbf{Issue \#86}) \textbf{permanece como una actividad formalmente pendiente}. El sistema ha superado con éxito las pruebas integrales de caja blanca y caja negra ejecutadas internamente por los autores (como se demostró en la Sección~\ref{sec:integral}), pero el ensayo formal ciego por terceros constituirá el hito definitivo de entrega previa a la aprobación final.
+    \item \textbf{Validación de Instalación en Máquinas Limpias desde Cero:} El procedimiento documentado en \path{docs/installation.md} y el orquestador \texttt{deploy.sh} fueron sometidos a un ensayo experimental sobre dos máquinas virtuales nuevas e independientes en VirtualBox (\texttt{sector-core} sobre Ubuntu 26.04 y \texttt{field-terminal} sobre Rocky Linux 10.2, commit \texttt{4404872}), comprobando el despliegue exitoso, la generación del primer backup y la salud global con código \texttt{0} (detallado en la Sección~\ref{sec:ensayo_maquinas_limpias}). Esto acreditó la viabilidad y completitud técnica de la guía.
+    \item \textbf{Validación Externa por Persona Ajena al Equipo (Issue \#86):} En estricto apego al criterio de cumplimiento exigido por la consigna y la \textbf{Issue \#86}, la prueba de aceptación final realizada por un operador independiente ajeno al equipo de desarrollo \textbf{permanece como una actividad formalmente pendiente}. Si bien el sistema demostró reproducibilidad técnica ante los autores, la auditoría ciega por un tercero ajeno constituirá el hito definitivo de cierre previo a la homologación final.
 \end{enumerate}
 
 Las bases operativas, de seguridad, de persistencia y de automatización construidas en este Capítulo 3 fijan un cimiento sólido e ineludible para abordar, con pleno conocimiento de los mecanismos del núcleo de Linux, los desafíos concurrentes y distribuidos que demandará \textit{Sistemas Operativos II}.
